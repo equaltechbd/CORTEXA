@@ -6,7 +6,7 @@ Developed by: Equal Tech
 
 ## 1. Project Overview
 
-CORTEXA is a secure, serverless web application designed to provide expert-level technical diagnosis and repair solutions. It handles queries across electronics, coding, mechanical issues, and general digital problem-solving. This MVP establishes a secure, scalable freemium model.
+CORTEXA is a secure, serverless web application designed to provide expert-level technical diagnosis and repair solutions. It handles queries across electronics, coding, mechanical issues, and general digital problem-solving. This MVP establishes a secure, scalable freemium model using React and Supabase.
 
 ---
 
@@ -18,13 +18,14 @@ This application is built around security, performance, and cost management:
 - Freemium Usage Limits: Daily consumption is controlled on the backend.
 - Secure AI Proxy: Expensive AI API calls are routed through a Supabase Edge Function to hide the Gemini API Key.
 - Multimodal Analysis: Supports processing of both text and image queries using the Gemini 1.5 Flash model.
-- Aesthetic Design: Features a responsive, dark-themed user interface.
+- Aesthetic Design: Features a responsive, dark-themed Glassmorphism user interface.
 
 ---
 
 ## 3. Technical Stack
 
-- Frontend: HTML5, CSS3, Vanilla JavaScript
+- Frontend Framework: React (TypeScript)
+- Build Tool: Vite
 - Backend: Supabase (PostgreSQL, GoTrue Auth)
 - Serverless Logic: Supabase Edge Functions (Deno/TypeScript)
 - AI Model: Google Gemini 1.5 Flash
@@ -44,7 +45,12 @@ To run this project, the following environment secrets must be configured in you
 
 ## 5. Deployment Instructions
 
-If managing locally via Supabase CLI:
+Since this is a Vite project, use the following settings when deploying to Netlify:
+
+- Build Command: npx vite build
+- Publish Directory: dist
+
+To deploy the Edge Function (Backend Logic):
 
 supabase functions deploy cortexa-ai-service
 
@@ -54,5 +60,5 @@ supabase functions deploy cortexa-ai-service
 
 After deploying the frontend to a public host (like Netlify), update these settings:
 
-1. Supabase Auth: Update the Site URL to your final domain.
-2. Google Cloud Console: Update the Authorized JavaScript origins and Redirect URIs to your final domain.
+1. Supabase Auth: Update the Site URL to your final Netlify domain.
+2. Google Cloud Console: Update the Authorized JavaScript origins and Redirect URIs to your final Netlify domain.
