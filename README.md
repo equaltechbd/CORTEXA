@@ -1,7 +1,5 @@
 # CORTEXA: Professional Technical Repair Assistant
 
-(Insert your logo link here)
-
 Developed by: Equal Tech
 
 ---
