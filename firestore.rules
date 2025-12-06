@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- HELPER FUNCTIONS ---
+
+    // Check if the requesting user is the owner of the document
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Check if the user has a Verified Pro or Subscriber status in their user document
+    // NOTE: This incurs an extra document read charge per request.
+    function hasProAccess() {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc.data.access_level.is_pro_subscriber == true || 
+             userDoc.data.access_level.is_verified_mechanic == true;
+    }
+
+    // Placeholder for Admin check (e.g., via Custom Claims or a specific Admin UID list)
+    function isAdmin() {
+      return request.auth.token.admin == true; 
+    }
+
+    // --- COLLECTION RULES ---
+
+    // 1. USERS COLLECTION
+    match /users/{userId} {
+      // Users can read their own full profile
+      allow read: if isOwner(userId);
+      
+      // Users can update their profile (name, country, etc.)
+      // BUT strict validation: prevent users from modifying their own 'access_level'
+      allow update: if isOwner(userId) 
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['access_level']));
+      
+      // Allow initial creation
+      allow create: if isOwner(userId);
+    }
+
+    // 2. COURSES CATALOG
+    match /courses_catalog/{courseId} {
+      // Publicly readable for the storefront
+      allow read: if true;
+      
+      // Only Admins can modify course prices and content
+      allow write: if isAdmin();
+    }
+
+    // 3. PRO TOOLS LIBRARY (Schematics, Boardviews)
+    match /pro_tools_library/{toolId} {
+      // RESTRICTED ACCESS: 
+      // Only allow read if the user is authenticated AND has pro access in their DB profile.
+      allow read: if request.auth != null && hasProAccess();
+      
+      // Only Admins can upload/edit tools
+      allow write: if isAdmin();
+    }
+  }
+}
