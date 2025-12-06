@@ -1,8 +1,7 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Sidebar } from './components/Sidebar';
-import { ChatMessage } from './components/ChatMessage';
-import { ChatInput } from './components/ChatInput'; 
+import Sidebar from './Sidebar';
+import ChatMessage from './ChatMessage';
+import ChatInput from './ChatInput'; 
 import { LimitModal } from './components/LimitModal'; 
 import { CortexaLogo } from './components/CortexaLogo'; 
 import { AuthScreen } from './components/AuthScreen';
