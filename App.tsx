@@ -1,12 +1,11 @@
 
-import Sidebar from './Sidebar';
-import CortexaLogo from './CortexaLogo';
-import ChatMessage from './ChatMessage';
-import ChatInput from './ChatInput';
-import CortexaAvatar from './CortexaAvatar';
-import LimitModal from './LimitModal';
-import PaymentModal from './PaymentModal';
-import { AuthScreen } from './AuthScreen';
+import React, { useState, useEffect, useRef } from 'react';
+import { Sidebar } from './components/Sidebar';
+import { ChatMessage } from './components/ChatMessage';
+import { ChatInput } from './components/ChatInput'; 
+import { LimitModal } from './components/LimitModal'; 
+import { CortexaLogo } from './components/CortexaLogo'; 
+import { AuthScreen } from './components/AuthScreen';
 import { sendMessageToCortexa } from './services/gemini';
 import { checkDailyLimits, incrementUsage } from './services/usageService'; 
 import { supabase } from './services/supabaseClient';
