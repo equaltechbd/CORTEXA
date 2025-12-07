@@ -6,10 +6,12 @@ import { ChatInput } from './components/ChatInput';
 import { LimitModal } from './components/LimitModal'; 
 import { CortexaLogo } from './components/CortexaLogo'; 
 import { AuthScreen } from './components/AuthScreen';
+import { OnboardingModal } from './components/OnboardingModal';
+import { SettingsModal } from './components/SettingsModal';
 import { sendMessageToCortexa } from './services/gemini';
 import { checkDailyLimits, incrementUsage } from './services/usageService'; 
 import { supabase } from './services/supabaseClient';
-import { Message, ChatMode } from './types';
+import { Message, ChatMode, UserProfile } from './types';
 import { X, LogOut } from 'lucide-react';
 import { Session } from '@supabase/supabase-js';
 
@@ -22,7 +24,11 @@ export default function App() {
   const [greetingSubText, setGreetingSubText] = useState('');
   const [chatMode, setChatMode] = useState<ChatMode>('standard');
   const [showLimitModal, setShowLimitModal] = useState(false); 
-  const [showIntro, setShowIntro] = useState(true);
+  
+  // Profile & Modal State
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // File Upload State
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -32,32 +38,59 @@ export default function App() {
 
   // User Context
   const [location] = useState('South Asia');
-  const role = 'Verified_Pro'; // In real app, fetch from user profile
+  const role = userProfile?.role || 'Guest';
 
-  // --- AUTH INITIALIZATION ---
+  // --- AUTH & DATA FETCHING ---
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+      }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+      } else {
+        setUserProfile(null);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- EFFECTS ---
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-  // Handle Intro Splash
-  useEffect(() => {
-    if (session) {
-      const timer = setTimeout(() => setShowIntro(false), 2500);
-      return () => clearTimeout(timer);
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
+      }
+
+      if (data) {
+        setUserProfile(data as UserProfile);
+        // Check if onboarding needed (e.g. if role is missing)
+        if (!data.role) {
+          setShowOnboarding(true);
+        }
+      } else {
+        // No profile found, show onboarding to create one
+        setShowOnboarding(true);
+      }
+    } catch (err) {
+      console.error(err);
     }
-  }, [session]);
+  };
+
+  // --- EFFECTS ---
 
   // Responsive sidebar check
   useEffect(() => {
@@ -128,18 +161,9 @@ export default function App() {
   const handleSendMessage = async (text: string) => {
     if (!session?.user) return;
 
-    // 1. CHECK LIMITS BEFORE PROCESSING
-    try {
-      const isImage = !!selectedImage;
-      await checkDailyLimits(session.user.id, isImage);
-    } catch (error: any) {
-      if (error.message === 'Daily_Limit_Reached') {
-        setShowLimitModal(true);
-        return; // STOP execution
-      }
-    }
+    // 1. CHECK LIMITS (Handled by Edge Function, but we catch 429)
+    // Client-side pre-check removed to rely on server security.
 
-    // 2. PROCEED IF WITHIN LIMITS
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -151,7 +175,6 @@ export default function App() {
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
     
-    // Clear inputs immediately
     const imageToSend = selectedImage;
     setSelectedImage(null);
 
@@ -171,12 +194,9 @@ export default function App() {
         userMsg.text,
         chatMode,
         location as any,
-        role,
+        role as any,
         imageToSend || undefined
       );
-
-      // 3. INCREMENT USAGE ON SUCCESS
-      await incrementUsage(session.user.id, !!imageToSend);
 
       // Replace thinking bubble with actual response
       setMessages(prev => prev.map(msg => 
@@ -189,13 +209,21 @@ export default function App() {
             }
           : msg
       ));
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setMessages(prev => prev.map(msg => 
-        msg.id === thinkingId 
-          ? { ...msg, text: "Connection interrupted. Please retry.", isThinking: false }
-          : msg
-      ));
+      
+      // Handle Daily Limit Error from Edge Function
+      if (error.message === 'Daily_Limit_Reached') {
+        setShowLimitModal(true);
+        // Remove the thinking bubble if failed
+        setMessages(prev => prev.filter(msg => msg.id !== thinkingId));
+      } else {
+        setMessages(prev => prev.map(msg => 
+          msg.id === thinkingId 
+            ? { ...msg, text: "Connection interrupted. Please retry.", isThinking: false }
+            : msg
+        ));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -208,14 +236,7 @@ export default function App() {
 
   return (
     <>
-      {/* Intro Splash Screen */}
-      {showIntro && (
-        <div className="intro-overlay">
-          <CortexaLogo size={200} particleCount={250} />
-        </div>
-      )}
-
-      {/* Limit Modal */}
+      {/* MODALS */}
       {showLimitModal && (
         <LimitModal 
           onClose={() => setShowLimitModal(false)} 
@@ -223,6 +244,23 @@ export default function App() {
             alert("Redirecting to Payment Gateway...");
             setShowLimitModal(false);
           }} 
+        />
+      )}
+
+      {showOnboarding && session.user && (
+        <OnboardingModal 
+          userId={session.user.id} 
+          onComplete={() => {
+            setShowOnboarding(false);
+            fetchUserProfile(session.user.id);
+          }} 
+        />
+      )}
+
+      {isSettingsOpen && session.user && (
+        <SettingsModal 
+          onClose={() => setIsSettingsOpen(false)}
+          onProfileUpdate={() => fetchUserProfile(session.user.id)}
         />
       )}
 
@@ -236,7 +274,7 @@ export default function App() {
         onChange={handleFileSelect}
       />
 
-      {/* --- HEADER --- */}
+      {/* --- HEADER (Cleaned Up) --- */}
       <header className="top-bar">
         <div className="left-section">
           <button 
@@ -255,52 +293,28 @@ export default function App() {
           <span className="brand-name">CORTEXA</span>
         </div>
 
-        <div className="right-section flex items-center gap-3">
-          <button 
-            onClick={handleLogout}
-            className="text-xs text-[#c4c7c5] hover:text-white flex items-center gap-1 px-2 py-1 rounded hover:bg-[#28292a] transition-colors"
-          >
-            <LogOut size={14} />
-            Sign Out
-          </button>
-          <div className="user-avatar">
-            {session.user.email ? session.user.email[0].toUpperCase() : 'U'}
-          </div>
-        </div>
+        {/* Right section cleaned - User Profile is now in Sidebar Footer */}
+        <div className="right-section"></div>
       </header>
 
       {/* --- SIDEBAR --- */}
       <Sidebar 
         isOpen={isSidebarOpen} 
         onNewChat={() => setMessages([])} 
+        userProfile={userProfile}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* --- MAIN CHAT AREA --- */}
       <div className={`main-container ${isSidebarOpen ? 'sidebar-visible' : ''}`}>
         
-        {/* Mode Selector */}
-        <div className="absolute top-4 left-0 w-full flex justify-center z-10 px-4">
-          <div className="flex bg-[#1e1f20] p-1 rounded-full border border-[#444746]">
-             {(['standard', 'fast', 'deep_think', 'search'] as ChatMode[]).map(mode => (
-               <button
-                 key={mode}
-                 onClick={() => setChatMode(mode)}
-                 className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
-                   chatMode === mode 
-                     ? 'bg-[#28292a] text-[#e3e3e3] shadow-sm' 
-                     : 'text-[#c4c7c5] hover:text-[#e3e3e3]'
-                 }`}
-               >
-                 {mode === 'deep_think' ? 'Deep Scan' : mode.charAt(0).toUpperCase() + mode.slice(1)}
-               </button>
-             ))}
-          </div>
-        </div>
+        {/* Top-Middle Mode Selector REMOVED */}
         
         {/* Greeting (Empty State) */}
         {messages.length === 0 && (
           <div className="greeting-area">
-            <h1 className="gradient-text">Hi, {session.user.email?.split('@')[0]}</h1>
+            <h1 className="gradient-text">Hi, {userProfile?.full_name?.split(' ')[0] || session.user.email?.split('@')[0]}</h1>
             <h2 className="sub-text">{greetingSubText}</h2>
           </div>
         )}
@@ -335,7 +349,9 @@ export default function App() {
              onSend={handleSendMessage}
              onAttachImage={handleAttachClick}
              isLoading={isLoading}
-             disabled={showLimitModal} // Disable input if limit reached
+             disabled={showLimitModal} 
+             chatMode={chatMode}
+             onModeChange={setChatMode}
           />
         </div>
 

@@ -1,64 +1,20 @@
-# CORTEXA: Professional Technical Repair Assistant
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-Developed by: Equal Tech
+# Run and deploy your AI Studio app
 
----
+This contains everything you need to run your app locally.
 
-## 1. Project Overview
+View your app in AI Studio: https://ai.studio/apps/drive/1ufadplppOiJfkFBnCDrXzrXSqMvHEq07
 
-CORTEXA is a secure, serverless web application designed to provide expert-level technical diagnosis and repair solutions. It handles queries across electronics, coding, mechanical issues, and general digital problem-solving. This MVP establishes a secure, scalable freemium model using React and Supabase.
+## Run Locally
 
----
+**Prerequisites:**  Node.js
 
-## 2. Core Features
 
-This application is built around security, performance, and cost management:
-
-- Secure Authentication: User sign-in/sign-up via Email/Password and Google OAuth.
-- Freemium Usage Limits: Daily consumption is controlled on the backend.
-- Secure AI Proxy: Expensive AI API calls are routed through a Supabase Edge Function to hide the Gemini API Key.
-- Multimodal Analysis: Supports processing of both text and image queries using the Gemini 1.5 Flash model.
-- Aesthetic Design: Features a responsive, dark-themed Glassmorphism user interface.
-
----
-
-## 3. Technical Stack
-
-- Frontend Framework: React (TypeScript)
-- Build Tool: Vite
-- Backend: Supabase (PostgreSQL, GoTrue Auth)
-- Serverless Logic: Supabase Edge Functions (Deno/TypeScript)
-- AI Model: Google Gemini 1.5 Flash
-- Hosting: Netlify
-
----
-
-## 4. Setup and Configuration
-
-To run this project, the following environment secrets must be configured in your Supabase Dashboard under Edge Functions > Settings > Secrets.
-
-- GEMINI_API_KEY: Provides access to the Gemini AI API.
-- SUPABASE_URL: Your project's unique REST endpoint.
-- SUPABASE_SERVICE_ROLE_KEY: Authorizes the Edge Function to securely read/write to the database.
-
----
-
-## 5. Deployment Instructions
-
-Since this is a Vite project, use the following settings when deploying to Netlify:
-
-- Build Command: npx vite build
-- Publish Directory: dist
-
-To deploy the Edge Function (Backend Logic):
-
-supabase functions deploy cortexa-ai-service
-
----
-
-## 6. Production Configuration
-
-After deploying the frontend to a public host (like Netlify), update these settings:
-
-1. Supabase Auth: Update the Site URL to your final Netlify domain.
-2. Google Cloud Console: Update the Authorized JavaScript origins and Redirect URIs to your final Netlify domain.
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`

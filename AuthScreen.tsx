@@ -1,17 +1,17 @@
-
 import React, { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
+import { Eye, EyeOff, Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 import { CortexaLogo } from './CortexaLogo';
-import { Lock, Mail, Loader2, ArrowRight } from 'lucide-react';
 
 export const AuthScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [message, setMessage] = useState<{ text: string; type: 'error' | 'success' } | null>(null);
+  const [showPassword, setShowPassword] = useState(false); // State for Eye Icon
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  const handleEmailAuth = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
@@ -23,7 +23,7 @@ export const AuthScreen: React.FC = () => {
           password,
         });
         if (error) throw error;
-        setMessage({ text: 'Check your email for the confirmation link!', type: 'success' });
+        setMessage({ type: 'success', text: 'Check your email for the confirmation link!' });
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -32,7 +32,7 @@ export const AuthScreen: React.FC = () => {
         if (error) throw error;
       }
     } catch (error: any) {
-      setMessage({ text: error.message, type: 'error' });
+      setMessage({ type: 'error', text: error.message });
     } finally {
       setLoading(false);
     }
@@ -40,7 +40,6 @@ export const AuthScreen: React.FC = () => {
 
   const handleGoogleLogin = async () => {
     try {
-      setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -49,140 +48,148 @@ export const AuthScreen: React.FC = () => {
       });
       if (error) throw error;
     } catch (error: any) {
-      setMessage({ text: error.message, type: 'error' });
-      setLoading(false);
+      setMessage({ type: 'error', text: error.message });
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#0a0a0a] p-4 text-[#e3e3e3] relative overflow-hidden font-sans">
+    <div className="min-h-screen flex items-center justify-center bg-gray-950 relative overflow-hidden font-sans">
       
-      {/* Background Orbs for Premium Depth */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[80px] pointer-events-none"></div>
+      {/* Abstract Background Glow (Futuristic Feel) */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none"></div>
 
-      <div className="w-full max-w-[420px] relative z-10">
-        {/* Glassmorphism Card */}
-        <div 
-          className="rounded-2xl p-8 animate-in fade-in zoom-in-95 duration-500"
-          style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 4px 30px rgba(0, 0, 0, 0.5)'
-          }}
+      {/* Glassmorphism Card */}
+      <div className="relative w-full max-w-md p-8 m-4 bg-gray-900/40 backdrop-blur-xl border border-gray-800 rounded-2xl shadow-2xl shadow-black/50">
+        
+        {/* Header Section */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="mb-4 transform hover:scale-105 transition-transform duration-300">
+            <CortexaLogo size={60} particleCount={80} />
+          </div>
+          <h2 className="text-2xl font-bold text-white tracking-tight">
+            {isSignUp ? 'Create Account' : 'Welcome Back'}
+          </h2>
+          <p className="text-gray-400 text-sm mt-2">
+            {isSignUp ? 'Join the professional repair network' : 'Login to access your workspace'}
+          </p>
+        </div>
+
+        {/* Auth Buttons */}
+        <button
+          onClick={handleGoogleLogin}
+          className="w-full flex items-center justify-center gap-3 bg-white text-gray-900 font-semibold py-3 px-4 rounded-xl hover:bg-gray-100 transition-all duration-200 mb-6 group"
         >
-          
-          {/* Header */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="mb-6 p-4 bg-white/5 rounded-full ring-1 ring-white/10 shadow-lg shadow-cyan-500/10">
-              <CortexaLogo size={40} particleCount={50} />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">
-              Welcome Back
-            </h1>
-            <p className="text-[#c4c7c5] text-sm mt-2 font-medium tracking-wide">
-              {isSignUp ? 'Create your CORTEXA ID' : 'Login to access your workspace'}
-            </p>
+          <img 
+            src="https://www.google.com/favicon.ico" 
+            alt="Google" 
+            className="w-5 h-5 group-hover:scale-110 transition-transform" 
+          />
+          Continue with Google
+        </button>
+
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-800"></div>
           </div>
-
-          {/* PRIMARY ACTION: Google Sign In */}
-          <button
-            onClick={handleGoogleLogin}
-            disabled={loading}
-            className="w-full bg-white hover:bg-gray-50 text-black font-medium py-3 rounded-xl transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-3 mb-6 shadow-lg shadow-black/20"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-            </svg>
-            <span>Continue with Google</span>
-          </button>
-
-          {/* DIVIDER */}
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10"></div>
-            </div>
-            <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
-              <span className="bg-[#18181b] px-3 text-gray-500 rounded-full">Or continue with email</span>
-            </div>
-          </div>
-
-          {/* FORM */}
-          <form onSubmit={handleEmailAuth} className="space-y-4">
-            <div className="space-y-4">
-              <div className="relative group">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#4F94CD] transition-colors" size={18} />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-black/20 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#4F94CD]/50 focus:ring-1 focus:ring-[#4F94CD]/50 transition-all"
-                  placeholder="name@example.com"
-                />
-              </div>
-
-              <div className="relative group">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#4F94CD] transition-colors" size={18} />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-black/20 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#4F94CD]/50 focus:ring-1 focus:ring-[#4F94CD]/50 transition-all"
-                  placeholder="Password"
-                  minLength={6}
-                />
-              </div>
-            </div>
-
-            {message && (
-              <div className={`p-3 rounded-lg text-xs font-medium flex items-center gap-2 animate-in slide-in-from-top-2 ${message.type === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
-                 <div className={`w-1.5 h-1.5 rounded-full ${message.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}></div>
-                 {message.text}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-[#4F94CD] to-[#2C6688] hover:from-[#5aa0d9] hover:to-[#38789e] text-white font-semibold py-3 rounded-xl transition-all mt-2 flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 active:scale-[0.98]"
-            >
-              {loading ? <Loader2 className="animate-spin" size={20} /> : (
-                <>
-                  {isSignUp ? 'Create Account' : 'Sign In'}
-                  <ArrowRight size={18} className="opacity-75" />
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Footer */}
-          <div className="mt-8 text-center border-t border-white/5 pt-6">
-            <p className="text-sm text-[#c4c7c5]">
-              {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-              <button
-                onClick={() => {
-                  setIsSignUp(!isSignUp);
-                  setMessage(null);
-                }}
-                className="text-[#4F94CD] hover:text-[#78b3e3] font-semibold ml-1 transition-colors bg-transparent border-none cursor-pointer"
-              >
-                {isSignUp ? 'Sign In' : 'Sign Up'}
-              </button>
-            </p>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-transparent px-2 text-gray-500 font-medium tracking-wider bg-gray-900/40 backdrop-blur-xl">
+              Or continue with email
+            </span>
           </div>
         </div>
-        
-        {/* Footer Credits */}
-        <div className="text-center mt-6">
-          <p className="text-[10px] text-gray-600 uppercase tracking-widest font-medium">Powered by Equal Tech</p>
+
+        {/* Email/Password Form */}
+        <form onSubmit={handleAuth} className="space-y-4">
+          
+          {/* Email Input */}
+          <div className="relative group">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Mail className="h-5 w-5 text-gray-500 group-focus-within:text-blue-500 transition-colors" />
+            </div>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="block w-full pl-10 pr-3 py-3 border border-gray-800 rounded-xl leading-5 bg-gray-800/50 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200"
+              placeholder="name@example.com"
+            />
+          </div>
+
+          {/* Password Input with Eye Icon */}
+          <div className="relative group">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Lock className="h-5 w-5 text-gray-500 group-focus-within:text-blue-500 transition-colors" />
+            </div>
+            <input
+              type={showPassword ? "text" : "password"} // Dynamic Type
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="block w-full pl-10 pr-10 py-3 border border-gray-800 rounded-xl leading-5 bg-gray-800/50 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200"
+              placeholder="Password"
+            />
+            {/* Eye Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-gray-500 hover:text-white transition-colors"
+            >
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          </div>
+
+          {/* Messages */}
+          {message && (
+            <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${
+              message.type === 'success' 
+                ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
+                : 'bg-red-500/10 text-red-400 border border-red-500/20'
+            }`}>
+              {message.text}
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02]"
+          >
+            {loading ? (
+              <Loader2 className="animate-spin h-5 w-5" />
+            ) : (
+              <span className="flex items-center gap-2">
+                {isSignUp ? 'Create Account' : 'Sign In'} <ArrowRight className="w-4 h-4" />
+              </span>
+            )}
+          </button>
+        </form>
+
+        {/* Footer Toggle */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-400">
+            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+            <button
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setMessage(null);
+              }}
+              className="font-medium text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              {isSignUp ? 'Sign In' : 'Sign Up'}
+            </button>
+          </p>
         </div>
       </div>
+      
+      {/* Branding Footer */}
+      <div className="absolute bottom-6 text-center w-full">
+        <p className="text-xs text-gray-600 font-medium tracking-widest uppercase opacity-50">
+          Powered by Equal Tech
+        </p>
+      </div>
+
     </div>
   );
 };

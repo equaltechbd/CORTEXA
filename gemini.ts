@@ -36,14 +36,13 @@ export const sendMessageToCortexa = async (
   role: UserRole,
   image?: string
 ): Promise<CortexaResponse> => {
-  // Safe access to process.env to prevent "process is not defined" crashes in browser previews
-  const apiKey = (typeof process !== 'undefined' && process.env) 
-    ? process.env.API_KEY 
-    : undefined;
+  // Fix: Use process.env.API_KEY exclusively as per coding guidelines.
+  // This also resolves the 'Property env does not exist on ImportMeta' error.
+  const apiKey = process.env.API_KEY;
 
   if (!apiKey) {
-    console.error("API Key not found in environment.");
-    return { text: "⚠️ SYSTEM ERROR: API Key missing. Please ensure the environment is configured correctly." };
+    console.error("API Key not found. Please set API_KEY in your environment variables.");
+    return { text: "⚠️ SYSTEM ERROR: API Key missing. Please ensure the API_KEY environment variable is set." };
   }
 
   // Re-create session if context changes significantly
