@@ -10,19 +10,28 @@ const createSession = async (
   apiKey: string, 
   location: UserLocation, 
   role: UserRole, 
-  tier: SubscriptionTier
+  tier: SubscriptionTier,
+  useLiteModel: boolean
 ) => {
   const genAI = new GoogleGenerativeAI(apiKey);
   
-  // MODEL CONFIGURATION
-  // আমরা স্ট্যান্ডার্ড এবং স্টেবল মডেল ব্যবহার করছি। 
-  // ফ্রি টায়ারে এটি সেরা পারফরম্যান্স দেয়।
+  // --- DUAL MODEL STRATEGY ---
+  // ছোট কাজের জন্য: gemini-2.5-flash-lite (Super Fast & Cheap)
+  // বড় কাজের জন্য: gemini-2.5-flash (Standard, Smart & Vision Capable)
+  const modelName = useLiteModel ? "gemini-2.5-flash-lite" : "gemini-2.5-flash";
+
+  console.log(`Using Model: ${modelName} | Tier: ${tier}`);
+
+  // SEARCH TOOL CONFIGURATION
+  // শুধুমাত্র Pro, Business এবং Basic ইউজারদের জন্য সার্চ টুল অন থাকবে
+  // এবং অবশ্যই লাইট মডেলে সার্চ দেওয়া হবে না (রিসোর্স বাঁচাতে)
+  const tools = (!useLiteModel && (tier === 'pro' || tier === 'business' || tier === 'basic')) 
+    ? [{ googleSearch: {} }] 
+    : [];
+
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
-    // PRO এবং BUSINESS ইউজারদের জন্য সার্চ টুল অন করা হবে
-    tools: (tier === 'pro' || tier === 'business' || tier === 'basic') ? [
-      { googleSearch: {} } 
-    ] : [],
+    model: modelName,
+    tools: tools,
   });
   
   const dynamicContext = `
@@ -41,7 +50,7 @@ SYSTEM_INSTRUCTION: ${CORTEXA_SYSTEM_PROMPT}
       },
       {
         role: "model",
-        parts: [{ text: "System Online. CORTEXA is ready to assist." }],
+        parts: [{ text: "System Online. CORTEXA (Model: ${modelName}) is ready." }],
       }
     ],
     generationConfig: {
@@ -61,41 +70,43 @@ export const sendMessageToCortexa = async (
   activeFacultyName: string,
   location: UserLocation,
   role: UserRole,
-  tier: SubscriptionTier, // নতুন: সাবস্ক্রিপশন টায়ার চেক করার জন্য
+  tier: SubscriptionTier, 
   image?: string
 ): Promise<CortexaResponse> => {
   const apiKey = process.env.API_KEY;
 
   if (!apiKey) {
-    console.error("API Key missing");
     return { text: "⚠️ SYSTEM ERROR: API Key missing in Netlify." };
   }
 
-  // কনফিগারেশন কি চেক (রোল বা টায়ার বদলালে নতুন সেশন হবে)
-  const configKey = `${location}-${role}-${tier}`;
+  // --- INTELLIGENT MODEL SELECTION ---
+  // কখন Lite মডেল ডাকবো?
+  // ১. যদি মেসেজ ছোট হয় (< ২০০ শব্দ)
+  // ২. যদি কোনো ছবি না থাকে
+  // ৩. যদি প্রশ্নের মধ্যে জটিল শব্দ (Link, Schematic, Price) না থাকে
+  const isSimpleText = message.length < 200;
+  const hasComplexKeywords = /link|price|download|schematic|driver|buy|latest/i.test(message);
+  const useLiteModel = isSimpleText && !image && !hasComplexKeywords;
+
+  // কনফিগারেশন কি আপডেট (মডেল পাল্টালে সেশন রিসেট হবে)
+  const configKey = `${location}-${role}-${tier}-${useLiteModel ? 'lite' : 'standard'}`;
   
   if (!chatSession || currentConfigKey !== configKey) {
-    chatSession = await createSession(apiKey, location, role, tier);
+    chatSession = await createSession(apiKey, location, role, tier, useLiteModel);
     currentConfigKey = configKey;
   }
 
   let msgPart: any = [{ text: message }];
 
-  // ইমেজ প্রসেসিং (যদি থাকে)
+  // ইমেজ প্রসেসিং (অবশ্যই 2.5 Flash Standard মডেলে যাবে)
   if (image) {
     const matches = image.match(/^data:(.+);base64,(.+)$/);
     if (matches) {
         const base64Data = matches[2];
         const mimeType = matches[1];
-        
         msgPart = [
             { text: message },
-            {
-                inlineData: {
-                    mimeType: mimeType,
-                    data: base64Data
-                }
-            }
+            { inlineData: { mimeType: mimeType, data: base64Data } }
         ];
     }
   }
@@ -103,8 +114,6 @@ export const sendMessageToCortexa = async (
   try {
     const result = await chatSession.sendMessage(msgPart);
     const response = await result.response;
-    
-    // গ্রাউন্ডিং মেটাডাটা (সার্চ রেজাল্ট) আছে কি না চেক করা
     const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
 
     return {
@@ -115,7 +124,8 @@ export const sendMessageToCortexa = async (
   } catch (error: any) {
     console.error("Gemini Error:", error);
     
-    // যদি সার্চ টুল ফেইল করে, তবে সাধারণ মোডে রিট্রাই করার অপশন রাখা যেতে পারে
-    return { text: `⚠️ Error: ${error.message || "Connection disrupted. Please try again."}` };
+    // FALLBACK: যদি 2.5 মডেলে কোনো কারণে সমস্যা হয়, এরর মেসেজ দেখাবে
+    // (1.5 মডেল আর নেই, তাই ফলব্যাক করার সুযোগ নেই)
+    return { text: `⚠️ Cortexa Error: ${error.message}` };
   }
 };
