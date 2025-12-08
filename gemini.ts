@@ -1,25 +1,36 @@
-import { GoogleGenAI, ChatSession, Part } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { CORTEXA_SYSTEM_PROMPT } from './constants';
 import { UserLocation, UserRole, GroundingMetadata } from './types';
 
-let chatSession: ChatSession | null = null;
+let chatSession: any = null;
 let currentConfigKey: string | null = null;
 
-const createSession = (apiKey: string, location: UserLocation, role: UserRole) => {
-  const ai = new GoogleGenAI({ apiKey });
+const createSession = async (apiKey: string, location: UserLocation, role: UserRole) => {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  // FIX: মডেলের নাম আপডেট করা হলো 'gemini-1.5-flash-latest'
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
   
-  // Dynamic system prompt construction
   const dynamicContext = `
 [CURRENT CONTEXT]
 User_Location: "${location}"
 User_Role: "${role}"
+SYSTEM_INSTRUCTION: ${CORTEXA_SYSTEM_PROMPT}
   `;
 
-  return ai.chats.create({
-    model: 'gemini-1.5-flash', 
-    config: {
-      systemInstruction: CORTEXA_SYSTEM_PROMPT + dynamicContext,
-      temperature: 0.7, 
+  return model.startChat({
+    history: [
+      {
+        role: "user",
+        parts: [{ text: "System Initialization: " + dynamicContext }],
+      },
+      {
+        role: "model",
+        parts: [{ text: "System Online. Ready to assist based on constraints." }],
+      }
+    ],
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 1000,
     },
   });
 };
@@ -39,41 +50,44 @@ export const sendMessageToCortexa = async (
   const apiKey = process.env.API_KEY;
 
   if (!apiKey) {
-    console.error("API Key not found. Please set API_KEY in your environment variables.");
-    return { text: "⚠️ SYSTEM ERROR: API Key missing. Please ensure the API_KEY environment variable is set." };
+    console.error("API Key missing");
+    return { text: "⚠️ SYSTEM ERROR: API Key missing in Netlify." };
   }
 
-  // Re-create session if context changes significantly
   const configKey = `${location}-${role}`;
   if (!chatSession || currentConfigKey !== configKey) {
-    chatSession = createSession(apiKey, location, role);
+    chatSession = await createSession(apiKey, location, role);
     currentConfigKey = configKey;
   }
 
-  const contextAwareMessage = `[ACTIVE FACULTY: ${activeFacultyName}]\n${message}`;
-
-  let messageContent: string | Part[] = contextAwareMessage;
+  let msgPart: any = [{ text: message }];
 
   if (image) {
     const matches = image.match(/^data:(.+);base64,(.+)$/);
     if (matches) {
-      const mimeType = matches[1];
-      const data = matches[2];
-      messageContent = [
-        { text: contextAwareMessage },
-        { inlineData: { mimeType, data } }
-      ];
+        const base64Data = matches[2];
+        const mimeType = matches[1];
+        
+        msgPart = [
+            { text: message },
+            {
+                inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data
+                }
+            }
+        ];
     }
   }
 
   try {
-    const result = await chatSession.sendMessage({ message: messageContent });
+    const result = await chatSession.sendMessage(msgPart);
+    const response = await result.response;
     return {
-      text: result.text || "CORTEXA Offline. Please retry.",
-      groundingMetadata: result.candidates?.[0]?.groundingMetadata as GroundingMetadata | undefined
+      text: response.text() || "No response.",
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Error:", error);
-    return { text: "⚠️ SYSTEM ERROR: Connection to Cortexa Core disrupted. Check network or API quota." };
+    return { text: `⚠️ Error: ${error.message || "Connection disrupted"}` };
   }
 };
