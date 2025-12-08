@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { CORTEXA_SYSTEM_PROMPT } from './constants';
-import { UserLocation, UserRole, GroundingMetadata, SubscriptionTier } from './types';
+import { UserLocation, UserRole, GroundingMetadata, SubscriptionTier, Attachment } from './types';
 
 let chatSession: any = null;
 let currentConfigKey: string | null = null;
@@ -16,15 +16,15 @@ const createSession = async (
   const genAI = new GoogleGenerativeAI(apiKey);
   
   // --- DUAL MODEL STRATEGY ---
-  // ছোট কাজের জন্য: gemini-2.5-flash-lite (Super Fast & Cheap)
-  // বড় কাজের জন্য: gemini-2.5-flash (Standard, Smart & Vision Capable)
+  // ১. Lite: শুধু ছোট টেক্সট চ্যাটের জন্য (খরচ কম)
+  // ২. Standard (Flash): ছবি, ভিডিও, পিডিএফ বা জটিল সার্চের জন্য
   const modelName = useLiteModel ? "gemini-2.5-flash-lite" : "gemini-2.5-flash";
 
-  console.log(`Using Model: ${modelName} | Tier: ${tier}`);
+  console.log(`Using Model: ${modelName} | Tier: ${tier} | Lite Mode: ${useLiteModel}`);
 
   // SEARCH TOOL CONFIGURATION
-  // শুধুমাত্র Pro, Business এবং Basic ইউজারদের জন্য সার্চ টুল অন থাকবে
-  // এবং অবশ্যই লাইট মডেলে সার্চ দেওয়া হবে না (রিসোর্স বাঁচাতে)
+  // Lite মডেলে সার্চ টুল কাজ করে না, তাই বন্ধ রাখা হচ্ছে
+  // ফ্রি ইউজারদের জন্যও সার্চ বন্ধ
   const tools = (!useLiteModel && (tier === 'pro' || tier === 'business' || tier === 'basic')) 
     ? [{ googleSearch: {} }] 
     : [];
@@ -50,12 +50,12 @@ SYSTEM_INSTRUCTION: ${CORTEXA_SYSTEM_PROMPT}
       },
       {
         role: "model",
-        parts: [{ text: "System Online. CORTEXA (Model: ${modelName}) is ready." }],
+        parts: [{ text: "System Online. CORTEXA is ready to assist." }],
       }
     ],
     generationConfig: {
       temperature: 0.7,
-      maxOutputTokens: 1000,
+      maxOutputTokens: 2000, // ভিডিও বা পিডিএফ এনালাইসিসের জন্য টোকেন বাড়ানো হলো
     },
   });
 };
@@ -71,7 +71,7 @@ export const sendMessageToCortexa = async (
   location: UserLocation,
   role: UserRole,
   tier: SubscriptionTier, 
-  image?: string
+  attachment?: Attachment // Updated: Supports Image, Video, Doc
 ): Promise<CortexaResponse> => {
   const apiKey = process.env.API_KEY;
 
@@ -80,15 +80,18 @@ export const sendMessageToCortexa = async (
   }
 
   // --- INTELLIGENT MODEL SELECTION ---
-  // কখন Lite মডেল ডাকবো?
-  // ১. যদি মেসেজ ছোট হয় (< ২০০ শব্দ)
-  // ২. যদি কোনো ছবি না থাকে
-  // ৩. যদি প্রশ্নের মধ্যে জটিল শব্দ (Link, Schematic, Price) না থাকে
+  // Lite মডেল কখন ব্যবহার হবে?
+  // ১. মেসেজ ছোট (< ২০০ শব্দ)
+  // ২. কোনো অ্যাটাচমেন্ট (ছবি/ভিডিও/ফাইল) নেই
+  // ৩. জটিল কিওয়ার্ড নেই
   const isSimpleText = message.length < 200;
+  const hasAttachment = !!attachment;
   const hasComplexKeywords = /link|price|download|schematic|driver|buy|latest/i.test(message);
-  const useLiteModel = isSimpleText && !image && !hasComplexKeywords;
+  
+  // যদি ফাইল থাকে, অবশ্যই স্ট্যান্ডার্ড মডেল ডাকতে হবে
+  const useLiteModel = isSimpleText && !hasAttachment && !hasComplexKeywords;
 
-  // কনফিগারেশন কি আপডেট (মডেল পাল্টালে সেশন রিসেট হবে)
+  // কনফিগারেশন কি আপডেট
   const configKey = `${location}-${role}-${tier}-${useLiteModel ? 'lite' : 'standard'}`;
   
   if (!chatSession || currentConfigKey !== configKey) {
@@ -96,17 +99,23 @@ export const sendMessageToCortexa = async (
     currentConfigKey = configKey;
   }
 
+  // মেসেজ পার্ট তৈরি
   let msgPart: any = [{ text: message }];
 
-  // ইমেজ প্রসেসিং (অবশ্যই 2.5 Flash Standard মডেলে যাবে)
-  if (image) {
-    const matches = image.match(/^data:(.+);base64,(.+)$/);
-    if (matches) {
-        const base64Data = matches[2];
-        const mimeType = matches[1];
+  // --- MULTIMODAL HANDLING (Image, Video, PDF) ---
+  if (attachment) {
+    // Base64 স্ট্রিং থেকে শুধু ডাটা অংশটুকু বের করা (prefix 'data:image/png;base64,' বাদ দেওয়া)
+    const base64Data = attachment.data.split(',')[1]; 
+    
+    if (base64Data) {
         msgPart = [
             { text: message },
-            { inlineData: { mimeType: mimeType, data: base64Data } }
+            {
+                inlineData: {
+                    mimeType: attachment.mimeType,
+                    data: base64Data
+                }
+            }
         ];
     }
   }
@@ -124,8 +133,7 @@ export const sendMessageToCortexa = async (
   } catch (error: any) {
     console.error("Gemini Error:", error);
     
-    // FALLBACK: যদি 2.5 মডেলে কোনো কারণে সমস্যা হয়, এরর মেসেজ দেখাবে
-    // (1.5 মডেল আর নেই, তাই ফলব্যাক করার সুযোগ নেই)
+    // Fallback error message
     return { text: `⚠️ Cortexa Error: ${error.message}` };
   }
 };
