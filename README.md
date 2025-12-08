@@ -1,13 +1,5 @@
-<div align="center">
-  <img src="logo.jpg" alt="CORTEXA Logo" width="120" height="120">
-  
-  <h1>CORTEXA</h1>
 
-  <p>
     Professional Technical Repair Assistant & AI Diagnostician
-  </p>
-
-  <imgfile:///home/chronos/u-e06114bd3aa9fd8d99f0fd8f08e0aa8320c8a438/MyFiles/Camera/index.html>
 
   ## Project Overview
 
