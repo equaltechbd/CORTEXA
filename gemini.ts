@@ -1,6 +1,6 @@
 import { GoogleGenAI, ChatSession, Part } from "@google/genai";
-import { CORTEXA_SYSTEM_PROMPT } from '../constants';
-import { UserLocation, UserRole, GroundingMetadata } from '../types';
+import { CORTEXA_SYSTEM_PROMPT } from './constants';
+import { UserLocation, UserRole, GroundingMetadata } from './types';
 
 let chatSession: ChatSession | null = null;
 let currentConfigKey: string | null = null;
@@ -16,10 +16,10 @@ User_Role: "${role}"
   `;
 
   return ai.chats.create({
-    model: 'gemini-3-pro-preview', // High intelligence model for technical accuracy
+    model: 'gemini-1.5-flash', 
     config: {
       systemInstruction: CORTEXA_SYSTEM_PROMPT + dynamicContext,
-      temperature: 0.7, // Balanced for creativity and accuracy
+      temperature: 0.7, 
     },
   });
 };
@@ -36,8 +36,6 @@ export const sendMessageToCortexa = async (
   role: UserRole,
   image?: string
 ): Promise<CortexaResponse> => {
-  // Fix: Use process.env.API_KEY exclusively as per coding guidelines.
-  // This also resolves the 'Property env does not exist on ImportMeta' error.
   const apiKey = process.env.API_KEY;
 
   if (!apiKey) {
@@ -48,36 +46,4 @@ export const sendMessageToCortexa = async (
   // Re-create session if context changes significantly
   const configKey = `${location}-${role}`;
   if (!chatSession || currentConfigKey !== configKey) {
-    chatSession = createSession(apiKey, location, role);
-    currentConfigKey = configKey;
-  }
-
-  // Prepend the active faculty to the message so the model knows which 'personality' to use
-  const contextAwareMessage = `[ACTIVE FACULTY: ${activeFacultyName}]\n${message}`;
-
-  let messageContent: string | Part[] = contextAwareMessage;
-
-  if (image) {
-    // Expecting base64 data URL: data:image/png;base64,.....
-    const matches = image.match(/^data:(.+);base64,(.+)$/);
-    if (matches) {
-      const mimeType = matches[1];
-      const data = matches[2];
-      messageContent = [
-        { text: contextAwareMessage },
-        { inlineData: { mimeType, data } }
-      ];
-    }
-  }
-
-  try {
-    const result = await chatSession.sendMessage({ message: messageContent });
-    return {
-      text: result.text || "CORTEXA Offline. Please retry.",
-      groundingMetadata: result.candidates?.[0]?.groundingMetadata as GroundingMetadata | undefined
-    };
-  } catch (error) {
-    console.error("Gemini Error:", error);
-    return { text: "⚠️ SYSTEM ERROR: Connection to Cortexa Core disrupted. Check network or API quota." };
-  }
-};
+    chatSession = createSession(apiKey, location,
