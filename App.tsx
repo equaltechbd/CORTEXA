@@ -9,55 +9,55 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput'; 
 import { LimitModal } from './LimitModal'; 
 import { CortexaLogo } from './CortexaLogo'; 
-import { AuthScreen } from './AuthScreen'; // এটা এখন পপ-আপ হিসেবে ব্যবহার হবে
-import { LandingPage } from './LandingPage'; // নতুন ল্যান্ডিং পেজ
+import { AuthScreen } from './AuthScreen';
+import { LandingPage } from './LandingPage';
 import { OnboardingModal } from './OnboardingModal';
 import { SettingsModal } from './SettingsModal';
 import { sendMessageToCortexa } from './gemini';
 
+// SERVICES & UTILS
 import { checkAndIncrementLimit } from './usageService';
 import { validateFile, compressImage, fileToBase64 } from './utils';
+
+// TYPES
 import { Message, ChatMode, UserProfile, Attachment } from './types';
 
-// GUEST LIMIT CONFIG
 const GUEST_MESSAGE_LIMIT = 5;
 
 export default function App() {
+  // --- STATE MANAGEMENT ---
   const [session, setSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
   // UI States
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [showAuthModal, setShowAuthModal] = useState(false); // পপ-আপ লগইন
-  const [showLanding, setShowLanding] = useState(true); // ল্যান্ডিং পেজ স্ট্যাটাস
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showLanding, setShowLanding] = useState(true);
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [guestCount, setGuestCount] = useState(0);
 
-  // Modals & Profile
+  // Profile & Modals
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   
+  // File Upload State
   const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [greetingSubText, setGreetingSubText] = useState('');
 
   // --- INITIALIZATION ---
   useEffect(() => {
-    // ১. লোকাল স্টোরেজ থেকে গেস্ট কাউন্ট চেক করা
     const savedGuestCount = localStorage.getItem('cortexa_guest_count');
-    if (savedGuestCount) {
-      setGuestCount(parseInt(savedGuestCount));
-    }
+    if (savedGuestCount) setGuestCount(parseInt(savedGuestCount));
 
-    // ২. সেশন চেক করা
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        setShowLanding(false); // লগইন থাকলে ল্যান্ডিং পেজ বন্ধ
+        setShowLanding(false);
         fetchUserProfile(session.user.id);
       }
     });
@@ -66,10 +66,9 @@ export default function App() {
       setSession(session);
       if (session?.user) {
         setShowLanding(false);
-        setShowAuthModal(false); // লগইন হলে মডাল বন্ধ
+        setShowAuthModal(false);
         fetchUserProfile(session.user.id);
       } else {
-        // লগআউট হলে ল্যান্ডিং পেজে ফেরত
         setShowLanding(true);
         setUserProfile(null);
       }
@@ -85,7 +84,6 @@ export default function App() {
         setUserProfile(data as UserProfile);
         if (!data.role) setShowOnboarding(true);
         
-        // Google Login Sync (Auto-fill Name/Avatar if missing)
         if (!data.full_name && session?.user?.user_metadata?.full_name) {
            await supabase.from('profiles').update({
              full_name: session.user.user_metadata.full_name,
@@ -118,24 +116,72 @@ export default function App() {
     setShowLanding(true);
   };
 
+  // --- FILE SELECTION HANDLER (STEP 1.2 MAIN LOGIC) ---
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // ভ্যালিডেশন চেক (টাইপ এবং সাইজ)
+    const currentTier = userProfile?.subscription_tier || 'free';
+    const validation = validateFile(file, currentTier);
+    
+    if (!validation.valid) {
+      alert(validation.error); // অথবা কাস্টম মডাল দেখাতে পারেন
+      event.target.value = '';
+      return;
+    }
+
+    try {
+      let data = '';
+      let type: 'image' | 'video' | 'document' = 'image';
+
+      if (file.type.startsWith('image')) {
+        data = await compressImage(file);
+        type = 'image';
+      } else if (file.type.startsWith('video')) {
+        data = await fileToBase64(file);
+        type = 'video';
+      } else {
+        data = await fileToBase64(file); // PDF/Doc
+        type = 'document';
+      }
+
+      setSelectedAttachment({
+        type,
+        mimeType: file.type,
+        data: data,
+        name: file.name
+      });
+
+    } catch (err) {
+      console.error("File processing error:", err);
+      alert("Failed to process file.");
+    }
+
+    event.target.value = ''; 
+  };
+
   const handleSendMessage = async (text: string) => {
-    // --- GUEST LOGIC ---
+    // Guest Limit Check
     if (isGuestMode && !session) {
       if (guestCount >= GUEST_MESSAGE_LIMIT) {
-        setShowAuthModal(true); // ৫টার বেশি হলে লগইন পেজ আসবে
+        setShowAuthModal(true);
         return;
       }
-      // গেস্ট কাউন্ট বাড়ানো
       const newCount = guestCount + 1;
       setGuestCount(newCount);
       localStorage.setItem('cortexa_guest_count', newCount.toString());
     }
 
-    // --- MEMBER LIMIT LOGIC ---
+    // Member Limit Check
     if (session?.user) {
       const currentTier = userProfile?.subscription_tier || 'free';
       const teamSize = userProfile?.team_size || 1;
+      // ভিডিও বা ডকুমেন্ট হলেও আমরা কাউন্টের জন্য 'image' লিমিট ব্যবহার করতে পারি 
+      // অথবা usageService এ 'attachment' নামে আলাদা টাইপ যোগ করতে পারি। 
+      // আপাতত 'image' হিসেবে কাউন্ট করছি সিম্পলিসিটির জন্য।
       const checkType = selectedAttachment ? 'image' : 'message';
+      
       const hasLimit = await checkAndIncrementLimit(session.user.id, currentTier, teamSize, checkType);
       
       if (!hasLimit) {
@@ -144,7 +190,6 @@ export default function App() {
       }
     }
 
-    // --- SEND MESSAGE ---
     const attachmentToSend = selectedAttachment;
     setSelectedAttachment(null);
 
@@ -163,13 +208,12 @@ export default function App() {
     setMessages(prev => [...prev, {
       id: thinkingId,
       role: 'model',
-      text: 'Analyzing...',
+      text: 'Analyzing...', // ফাইল থাকলে এনালাইজিং দেখাবে
       timestamp: Date.now(),
       isThinking: true
     }]);
 
     try {
-      // গেস্টদের জন্য ডিফল্ট 'free' এবং 'Guest' রোল
       const tier = session ? (userProfile?.subscription_tier || 'free') : 'free';
       const role = session ? (userProfile?.role || 'Guest') : 'Guest';
 
@@ -199,46 +243,33 @@ export default function App() {
     }
   };
 
-  // --- RENDER FLOW ---
-
-  // 1. Show Landing Page if not logged in AND not in Guest Mode
+  // --- RENDER ---
+  
+  // Landing Page View
   if (!session && showLanding && !isGuestMode) {
     return (
       <>
         {showAuthModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div className="relative w-full max-w-md">
-              <button 
-                onClick={() => setShowAuthModal(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-white z-50"
-              >
-                <X size={24} />
-              </button>
+              <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white z-50"><X size={24} /></button>
               <AuthScreen /> 
             </div>
           </div>
         )}
-        <LandingPage 
-          onLoginClick={() => setShowAuthModal(true)} 
-          onGuestTry={handleGuestTry}
-          guestUsed={guestCount >= GUEST_MESSAGE_LIMIT}
-        />
+        <LandingPage onLoginClick={() => setShowAuthModal(true)} onGuestTry={handleGuestTry} guestUsed={guestCount >= GUEST_MESSAGE_LIMIT} />
       </>
     );
   }
 
-  // 2. Chat Interface (Logged In OR Guest Mode)
+  // Chat Interface
   return (
     <>
-      {/* POPUP AUTH MODAL (For Guests reaching limit) */}
       {(!session && showAuthModal) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
           <div className="relative w-full max-w-md">
-            {/* গেস্টদের জন্য ক্রস বাটন থাকবে, কিন্তু লিমিট শেষ হলে তারা আটকা পড়বে */}
             {guestCount < GUEST_MESSAGE_LIMIT && (
-              <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white z-50">
-                <X size={24} />
-              </button>
+              <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white z-50"><X size={24} /></button>
             )}
             <AuthScreen /> 
           </div>
@@ -249,9 +280,16 @@ export default function App() {
       {showOnboarding && session && <OnboardingModal userId={session.user.id} onComplete={() => { setShowOnboarding(false); fetchUserProfile(session.user.id); }} />}
       {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} onProfileUpdate={() => session && fetchUserProfile(session.user.id)} userProfile={userProfile} />}
 
-      <input type="file" ref={fileInputRef} id="file-input" accept="image/*,video/*,application/pdf" style={{ display: 'none' }} onChange={(e) => { /* Reuse logic */ }} />
+      {/* HIDDEN INPUT FOR FILES (Video, PDF, Image) */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        id="file-input" 
+        accept="image/*,video/*,application/pdf" // এখানে সব ফরম্যাট এলাউ করা হলো
+        style={{ display: 'none' }} 
+        onChange={handleFileSelect}
+      />
 
-      {/* HEADER */}
       <header className="fixed top-0 w-full h-16 bg-[#131314] flex items-center px-4 z-40 border-b border-[#333] justify-between lg:justify-start">
         <div className="flex items-center gap-3">
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-gray-400 lg:hidden"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
@@ -264,9 +302,7 @@ export default function App() {
           </div>
         </div>
         {!session && (
-          <button onClick={() => setShowAuthModal(true)} className="text-sm bg-blue-600 px-4 py-1.5 rounded-full text-white hover:bg-blue-500">
-            Log In
-          </button>
+          <button onClick={() => setShowAuthModal(true)} className="text-sm bg-blue-600 px-4 py-1.5 rounded-full text-white hover:bg-blue-500">Log In</button>
         )}
       </header>
 
@@ -285,12 +321,30 @@ export default function App() {
         </div>
 
         <div className="bg-[#131314] pt-2 pb-6 px-4 border-t border-[#333]/30">
-           {/* Attachment Preview Here (Reuse previous code) */}
+           {/* PREVIEW AREA (NEW) */}
+           {selectedAttachment && (
+            <div className="max-w-[800px] mx-auto mb-2 relative inline-flex items-center gap-3 bg-gray-800/50 p-2 rounded border border-gray-700">
+              {selectedAttachment.type === 'image' ? (
+                <img src={selectedAttachment.data} alt="Preview" className="h-12 w-12 object-cover rounded" />
+              ) : selectedAttachment.type === 'video' ? (
+                <div className="h-12 w-12 flex items-center justify-center bg-gray-900 rounded text-blue-400"><VideoIcon size={24} /></div>
+              ) : (
+                <div className="h-12 w-12 flex items-center justify-center bg-gray-900 rounded text-green-400"><FileText size={24} /></div>
+              )}
+              <div className="flex flex-col">
+                <span className="text-sm text-gray-200 truncate max-w-[200px]">{selectedAttachment.name}</span>
+                <span className="text-xs text-gray-500 uppercase">{selectedAttachment.type}</span>
+              </div>
+              <button onClick={() => setSelectedAttachment(null)} className="bg-gray-700 rounded-full p-1 hover:bg-gray-600 ml-2">
+                <X size={14} className="text-gray-300" />
+              </button>
+            </div>
+           )}
+
            <ChatInput 
              onSend={handleSendMessage} 
-             onAttachImage={() => fileInputRef.current?.click()} 
+             onAttachImage={() => fileInputRef.current?.click()} // বাটন এখন সব ফাইল ওপেন করবে
              isLoading={isLoading} 
-             // গেস্ট লিমিট শেষ হলে ইনপুট ডিজেবল করে দেয়া যায়, অথবা মডাল তো আসবেই
              disabled={isGuestMode && guestCount >= GUEST_MESSAGE_LIMIT}
              chatMode={'standard'}
              onModeChange={() => {}}
