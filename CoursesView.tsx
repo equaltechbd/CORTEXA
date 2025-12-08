@@ -1,18 +1,25 @@
 import React from 'react';
-import { COURSES } from './courses';
-import { BookOpen, Clock, Award, ShieldCheck, Lock, Wrench, CheckCircle, Globe } from 'lucide-react';
+import { COURSES, Course } from './courses';
+import { BookOpen, Clock, Award, ShieldCheck, Lock, Wrench, Globe } from 'lucide-react';
 
-export const CoursesView: React.FC = () => {
+interface CoursesViewProps {
+  onCourseSelect: (course: Course) => void; // ✅ প্যারেন্টকে জানানোর ফাংশন
+}
+
+export const CoursesView: React.FC<CoursesViewProps> = ({ onCourseSelect }) => {
   
-  const handleEnroll = (course: any) => {
-    // এখানে আমরা ইউজারকে দুইটা অপশনই দেখাবো পেমেন্টের জন্য
-    alert(`Course: ${course.title}\n\nPrice: ${course.priceUsd} (International) / ${course.priceBdt} (Bangladesh)\n\nPayment Gateway coming soon!`);
+  const handleEnroll = (course: Course) => {
+    // এখানে আমরা সিমুলেট করছি যে ইউজার পেমেন্ট করেছে অথবা ট্রায়াল শুরু করেছে
+    const confirm = window.confirm(`Start Demo/Trial for "${course.title}"?\n\n(In real app, this opens Payment Gateway)`);
+    if (confirm) {
+      onCourseSelect(course); // ✅ অ্যাপকে জানালাম কোর্স সিলেক্টেড
+    }
   };
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#131314] p-4 md:p-8">
       
-      {/* HEADER SECTION */}
+      {/* HEADER */}
       <div className="max-w-6xl mx-auto mb-10 text-center md:text-left">
         <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-3">
           <BookOpen className="text-blue-500" size={32} />
@@ -30,6 +37,8 @@ export const CoursesView: React.FC = () => {
             key={course.id} 
             className="bg-[#1E1F20] border border-gray-800 rounded-2xl p-6 flex flex-col hover:border-gray-600 transition-all duration-300 group relative overflow-hidden"
           >
+            {/* ... (বাকি ডিজাইন আগের মতোই থাকবে) ... */}
+            
             {/* LOCK VISUAL */}
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <Lock size={100} />
@@ -45,7 +54,6 @@ export const CoursesView: React.FC = () => {
                 {course.level}
               </span>
               <div className="flex gap-2">
-                 {/* Language Icon to show global support */}
                 <div className="bg-black/50 p-1.5 rounded-full border border-gray-700" title="Multi-language Support">
                   <Globe size={16} className="text-blue-400" />
                 </div>
@@ -55,23 +63,16 @@ export const CoursesView: React.FC = () => {
               </div>
             </div>
 
-            {/* TITLE & DESCRIPTION */}
             <h3 className="text-xl font-bold text-white mb-2 relative z-10">{course.title}</h3>
-            <p className="text-sm text-gray-400 mb-4 relative z-10 line-clamp-2">
-              {course.description}
-            </p>
+            <p className="text-sm text-gray-400 mb-4 relative z-10 line-clamp-2">{course.description}</p>
 
-            {/* REQUIRED TOOLS */}
             <div className="mb-4 bg-black/20 p-3 rounded-lg border border-gray-800 relative z-10">
               <div className="flex items-center gap-2 text-xs text-yellow-500 font-bold mb-2">
                 <Wrench size={12} /> REQUIRED TOOLS
               </div>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                {course.requiredTools.join(', ')}
-              </p>
+              <p className="text-xs text-gray-400 leading-relaxed">{course.requiredTools.join(', ')}</p>
             </div>
 
-            {/* TIME & VALIDITY */}
             <div className="space-y-2 mb-6 relative z-10">
               <div className="flex items-center gap-2 text-xs text-gray-300">
                 <Clock size={14} className="text-gray-500" />
@@ -83,7 +84,6 @@ export const CoursesView: React.FC = () => {
               </div>
             </div>
 
-            {/* PRICE & ENROLL */}
             <div className="mt-auto pt-4 border-t border-gray-700 flex flex-col gap-3 relative z-10">
               <div className="flex justify-between items-end">
                 <div>
@@ -105,7 +105,6 @@ export const CoursesView: React.FC = () => {
           </div>
         ))}
       </div>
-
     </div>
   );
 };
