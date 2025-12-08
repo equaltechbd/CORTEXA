@@ -1,8 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { UserProfile } from '../types';
+import React, { useState } from 'react';
+import { MessageSquare, Plus, BookOpen, MoreHorizontal, User as UserIcon } from 'lucide-react';
+import { UserProfile } from './types';
 import { ProfileMenu } from './ProfileMenu';
-import { UserAvatar } from './UserAvatar';
-import { Plus, MessageSquare, ShieldCheck, Wrench, MoreHorizontal } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -15,115 +14,100 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ 
   isOpen, 
   onNewChat, 
-  userProfile,
-  onOpenSettings,
-  onLogout
+  userProfile, 
+  onOpenSettings, 
+  onLogout 
 }) => {
+  // মেনু ওপেন/ক্লোজ করার স্টেট
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   return (
     <aside 
-      className={`fixed top-0 left-0 h-screen w-[280px] bg-[#1e1f20] border-r border-[#333] transform transition-transform duration-300 z-40 flex flex-col pt-[64px] ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      className={`fixed top-16 left-0 h-[calc(100vh-64px)] bg-[#131314] border-r border-[#333] transition-all duration-300 z-40 flex flex-col
+      ${isOpen ? 'w-[280px] translate-x-0' : 'w-[280px] -translate-x-full lg:translate-x-0 lg:w-0 lg:border-none lg:overflow-hidden'}`}
     >
-      
-      {/* 1. MIDDLE SECTION: Navigation & History */}
-      {/* flex-grow: 1; overflow-y: auto; - Pushes footer down naturally */}
-      <div className="flex-grow overflow-y-auto p-3 custom-scrollbar flex flex-col gap-2">
-        
+      {/* 1. TOP ACTIONS (New Chat & Courses) */}
+      <div className="p-4 space-y-2">
         {/* New Chat Button */}
         <button 
           onClick={onNewChat}
-          className="flex items-center gap-3 w-full px-4 py-3 bg-[#282a2c] hover:bg-[#37393b] text-[#c4c7c5] hover:text-white rounded-full transition-all group shrink-0"
+          className="w-full flex items-center gap-3 px-4 py-3 bg-[#1E1F20] hover:bg-[#28292A] text-gray-200 rounded-full transition-colors border border-gray-700 shadow-sm group"
         >
-          <div className="p-1 bg-white/5 rounded-full group-hover:bg-white/10">
-            <Plus size={18} />
-          </div>
-          <span className="text-sm font-medium">New chat</span>
+          <Plus size={20} className="text-gray-400 group-hover:text-white" />
+          <span className="text-sm font-medium">New diagnosis</span>
         </button>
 
-        {/* Workspace Section */}
-        <div className="mt-4 shrink-0">
-          <h3 className="px-4 text-xs font-semibold text-[#8e918f] uppercase tracking-wider mb-2">
-            My Workspace
-          </h3>
-          <div className="px-4 py-2 text-xs text-[#5e615f] italic">
-            Recent chats will appear here...
-          </div>
-        </div>
-
-        {/* Pro Section */}
-        <div className="mt-4 pt-4 border-t border-[#333] shrink-0">
-          <h3 className="px-4 text-xs font-semibold text-[#8e918f] uppercase tracking-wider mb-2">
-            Become Pro
-          </h3>
-          <button className="flex items-center gap-3 w-full px-4 py-2 text-[#e3e3e3] hover:bg-[#28292a] rounded-lg transition-colors text-left text-sm group">
-            <ShieldCheck size={16} className="text-[#a8c7fa] group-hover:text-[#8ab4f8]" />
-            <span>Cyber Security Ops</span>
-          </button>
-          <button className="flex items-center gap-3 w-full px-4 py-2 text-[#e3e3e3] hover:bg-[#28292a] rounded-lg transition-colors text-left text-sm group">
-            <Wrench size={16} className="text-[#a8c7fa] group-hover:text-[#8ab4f8]" />
-            <span>Master Level Repair</span>
-          </button>
-        </div>
+        {/* ✅ COURSES BUTTON (Added Here) */}
+        <button 
+          onClick={() => alert("CORTEXA Academy Coming Soon!")} // পরবর্তীতে আমরা রাউটিং যোগ করব
+          className="w-full flex items-center gap-3 px-4 py-2 text-gray-300 hover:bg-[#1E1F20] hover:text-white rounded-lg transition-colors group"
+        >
+          <BookOpen size={18} className="text-gray-400 group-hover:text-blue-400" />
+          <span className="text-sm font-medium">Courses</span>
+        </button>
       </div>
 
-      {/* 2. FOOTER SECTION: User Profile */}
-      {/* Pinned to bottom via flex layout */}
-      <div 
-        className="p-3 border-t border-[#333] bg-[#1e1f20] relative shrink-0" 
-        ref={menuRef}
-      >
+      {/* 2. CHATS (History List) */}
+      <div className="flex-1 overflow-y-auto px-2 scrollbar-thin scrollbar-thumb-gray-800">
+        <div className="px-4 py-2 mt-2">
+          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Recent Chats</span>
+        </div>
+        {/* Chat History Item Example */}
+        <button className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-[#1E1F20] rounded-lg transition-colors flex items-center gap-3 group">
+          <MessageSquare size={16} className="text-gray-500 group-hover:text-white" />
+          <span className="truncate">Circuit Board Analysis...</span>
+        </button>
+      </div>
+
+      {/* 3. FOOTER (Profile & Settings) */}
+      <div className="p-4 border-t border-[#333] bg-[#131314] relative">
         
-        {/* Profile Menu Popover */}
-        {/* Positioned absolutely: bottom: 100%, left: 0, width: 100% */}
-        {isMenuOpen && (
-          <div className="absolute bottom-full left-0 w-full px-2 z-50 mb-3">
-             <div className="w-full">
-                <ProfileMenu 
-                  onClose={() => setIsMenuOpen(false)}
-                  onOpenSettings={() => {
-                    onOpenSettings();
-                    setIsMenuOpen(false);
-                  }}
-                  onLogout={onLogout}
-                />
-             </div>
-          </div>
+        {/* PROFILE MENU POPUP */}
+        {isMenuOpen && userProfile && (
+          <ProfileMenu 
+            userProfile={userProfile}
+            onClose={() => setIsMenuOpen(false)}
+            onLogout={onLogout}
+            onOpenSettings={() => {
+              setIsMenuOpen(false);
+              onOpenSettings();
+            }}
+          />
         )}
 
-        <button 
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className={`flex items-center gap-3 w-full px-3 py-3 rounded-xl transition-colors ${isMenuOpen ? 'bg-[#28292a]' : 'hover:bg-[#28292a]'}`}
-        >
-          <div className="flex-shrink-0">
-             <UserAvatar userProfile={userProfile} />
+        {/* PROFILE BUTTON TRIGGER */}
+        {userProfile ? (
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className={`w-full flex items-center justify-between p-2 rounded-xl transition-all ${isMenuOpen ? 'bg-[#28292A]' : 'hover:bg-[#1E1F20]'}`}
+          >
+            <div className="flex items-center gap-3">
+              {userProfile.avatar_url ? (
+                <img src={userProfile.avatar_url} alt="Profile" className="w-9 h-9 rounded-full border border-gray-700 object-cover" />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-blue-900/30 flex items-center justify-center border border-blue-800 text-blue-400 font-bold text-xs">
+                  {userProfile.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'U'}
+                </div>
+              )}
+              <div className="flex flex-col items-start">
+                <span className="text-sm font-medium text-gray-200 truncate max-w-[120px]">
+                  {userProfile.full_name?.split(' ')[0] || 'User'}
+                </span>
+                <span className="text-[10px] text-gray-500 bg-gray-800 px-1.5 rounded border border-gray-700 uppercase">
+                  {userProfile.subscription_tier}
+                </span>
+              </div>
+            </div>
+            
+            <MoreHorizontal size={18} className="text-gray-500" />
+          </button>
+        ) : (
+          // GUEST VIEW
+          <div className="text-center p-2">
+            <span className="text-xs text-gray-500">Guest Mode</span>
           </div>
-          
-          <div className="flex-1 text-left overflow-hidden">
-            <p className="text-sm font-medium text-[#e3e3e3] truncate">
-              {userProfile?.profile?.name || userProfile?.full_name || 'User'}
-            </p>
-            <p className="text-xs text-[#8e918f] truncate capitalize">
-              {userProfile?.profile?.occupation || userProfile?.role?.replace(/_/g, ' ') || 'Guest'}
-            </p>
-          </div>
-
-          <MoreHorizontal size={16} className="text-[#8e918f]" />
-        </button>
+        )}
       </div>
-
     </aside>
   );
 };
