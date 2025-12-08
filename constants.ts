@@ -58,36 +58,38 @@ If a user indicates they are learning a trade (e.g., "I bought the Mobile Repair
 `;
 
 // --- SUBSCRIPTION LIMITS (BUSINESS LOGIC) ---
+// ✅ ফাইল রিটেনশন ডেট আপডেট করা হয়েছে (3, 15, 30 দিন)
 export const SUBSCRIPTION_LIMITS = {
   free: {
     daily_messages: 20,
     daily_images: 5,
     daily_search: 0, 
     video_allowed: false,
-    file_retention_days: 1, // 24 Hours Auto-delete
+    file_retention_days: 3, // ✅ Updated to 3 Days
     search_limit: 0
   },
   basic: {
     daily_messages: 100,
     daily_images: 20,
-    daily_search: 5, // Hidden limit
-    video_allowed: true, // Low resolution storage
-    file_retention_days: 7,
+    daily_search: 5, 
+    video_allowed: true, 
+    file_retention_days: 15, // ✅ Updated to 15 Days
     search_limit: 5
   },
   pro: {
-    daily_messages: 500, // Unlimited Fair use
+    daily_messages: 500, 
     daily_images: 100,
-    daily_search: 20, // VIP Feature
-    video_allowed: true, // High Quality
-    file_retention_days: 30,
+    daily_search: 20, 
+    video_allowed: true, 
+    file_retention_days: 30, // ✅ 30 Days
     search_limit: 20
   },
   business: {
-    daily_messages: 500, // এটা ১ জনের লিমিট। ৫ জন হলে ২৫০০ হবে।
+    daily_messages: 500, 
     daily_images: 100,
     daily_search: 20,
     video_allowed: true,
-    file_retention_days: 30,
+    file_retention_days: 30, // ✅ 30 Days
     search_limit: 20
   }
+};
