@@ -1,22 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
-// Fixing imports: Removing 'components/' and 'services/' since files are in root
-import Sidebar from './Sidebar';  
+import { supabase } from './supabaseClient';
+import { Session } from '@supabase/supabase-js';
+import { X } from 'lucide-react';
+
+// --- IMPORTS (Corrected Paths for Root Directory) ---
+import Sidebar from './Sidebar';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput'; 
 import { LimitModal } from './LimitModal'; 
 import { CortexaLogo } from './CortexaLogo'; 
-import AuthScreen from './AuthScreen';
-import { OnboardingModal } from './OnboardingModal'; // Ensure this file exists
-import { SettingsModal } from './SettingsModal';     // Ensure this file exists
+import { AuthScreen } from './AuthScreen';
+import { OnboardingModal } from './OnboardingModal';
+import { SettingsModal } from './SettingsModal';
 import { sendMessageToCortexa } from './gemini';
-import { checkDailyLimits, incrementUsage } from './usageService'; 
-import { supabase } from './supabaseClient';
+
+// Types
 import { Message, ChatMode, UserProfile } from './types';
-import { X, LogOut } from 'lucide-react';
-import { Session } from '@supabase/supabase-js';
 
 export default function App() {
-  // --- STATE ---
+  // --- STATE MANAGEMENT ---
   const [session, setSession] = useState<Session | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -33,15 +35,16 @@ export default function App() {
   // File Upload State
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   
+  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // User Context
+  // User Context (Defaulting to South Asia for now, can be dynamic later)
   const [location] = useState('South Asia');
-  const role = userProfile?.role || 'Guest';
 
-  // --- AUTH & DATA FETCHING ---
+  // --- AUTH & PROFILE FETCHING ---
   useEffect(() => {
+    // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
@@ -49,6 +52,7 @@ export default function App() {
       }
     });
 
+    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -71,75 +75,61 @@ export default function App() {
         .eq('id', userId)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
-      }
-
       if (data) {
         setUserProfile(data as UserProfile);
-        // Check if onboarding needed (e.g. if role is missing)
-        if (!data.role) {
+        // If occupation/role is missing, trigger onboarding
+        if (!data.occupation || !data.role) {
           setShowOnboarding(true);
         }
       } else {
-        // No profile found, show onboarding to create one
+        // No profile found, show onboarding
         setShowOnboarding(true);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching profile:", err);
     }
   };
 
-  // --- EFFECTS ---
-
-  // Responsive sidebar check
-  useEffect(() => {
-    const handleResize = () => {
-      if (typeof window !== 'undefined') {
-        if (window.innerWidth < 1024) {
-          setIsSidebarOpen(false);
-        } else {
-          setIsSidebarOpen(true);
-        }
-      }
-    };
-    handleResize(); 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Greeting
+  // --- UI EFFECTS ---
+  
+  // Random Greeting
   useEffect(() => {
     if (session) {
-      generateDynamicGreeting();
+      const greetings = [
+        "What shall we fix today?",
+        "Ready to diagnose. What's the situation?",
+        "What machine is acting up?",
+        "System ready. What are the symptoms?",
+        "What do you want to learn today?"
+      ];
+      const random = greetings[Math.floor(Math.random() * greetings.length)];
+      setGreetingSubText(random);
     }
   }, [session]);
 
-  // Auto-scroll
+  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const generateDynamicGreeting = () => {
-    const greetings = [
-      "What shall we fix today?",
-      "Ready to diagnose. What's the situation?",
-      "What machine is acting up?",
-      "System ready. What are the symptoms?",
-      "What do you want to learn today?"
-    ];
-    const random = greetings[Math.floor(Math.random() * greetings.length)];
-    setGreetingSubText(random);
-  };
+  // Responsive Sidebar
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setIsSidebarOpen(false);
+      } else {
+        setIsSidebarOpen(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initial check
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // --- HANDLERS ---
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-  };
-
-  const handleAttachClick = () => {
-    fileInputRef.current?.click();
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,16 +142,13 @@ export default function App() {
       };
       reader.readAsDataURL(file);
     }
-    // Reset input so same file can be selected again
-    event.target.value = '';
+    event.target.value = ''; // Reset input
   };
-
-  const clearImage = () => setSelectedImage(null);
 
   const handleSendMessage = async (text: string) => {
     if (!session?.user) return;
 
-    // 1. CHECK LIMITS (Handled by Edge Function, but we catch 429)
+    // Create User Message
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -174,7 +161,7 @@ export default function App() {
     setIsLoading(true);
     
     const imageToSend = selectedImage;
-    setSelectedImage(null);
+    setSelectedImage(null); // Clear image after sending
 
     // Optimistic UI: Thinking State
     const thinkingId = (Date.now() + 1).toString();
@@ -187,12 +174,12 @@ export default function App() {
     }]);
 
     try {
-      // API Call
+      // API Call to Gemini
       const response = await sendMessageToCortexa(
         userMsg.text,
-        chatMode, // activeFacultyName placeholder if needed, likely just passing mode or text
+        chatMode as any, // Passing mode as faculty name for simplicity
         location as any,
-        role as any,
+        (userProfile?.role || 'Guest') as any,
         imageToSend || undefined
       );
 
@@ -210,7 +197,7 @@ export default function App() {
     } catch (error: any) {
       console.error(error);
       
-      // Handle Daily Limit Error from Edge Function
+      // Handle Daily Limit Error
       if (error.message === 'Daily_Limit_Reached') {
         setShowLimitModal(true);
         // Remove the thinking bubble if failed
@@ -227,14 +214,15 @@ export default function App() {
     }
   };
 
-  // --- RENDER AUTH SCREEN IF NOT LOGGED IN ---
+  // --- RENDER ---
+
   if (!session) {
     return <AuthScreen />;
   }
 
   return (
     <>
-      {/* MODALS */}
+      {/* --- MODALS --- */}
       {showLimitModal && (
         <LimitModal 
           onClose={() => setShowLimitModal(false)} 
@@ -272,26 +260,20 @@ export default function App() {
         onChange={handleFileSelect}
       />
 
-      {/* --- HEADER (Cleaned Up) --- */}
-      <header className="top-bar">
-        <div className="left-section">
+      {/* --- HEADER --- */}
+      <header className="fixed top-0 w-full h-16 bg-[#131314] flex items-center px-4 z-50 backdrop-blur-md border-b border-[#333] justify-between lg:justify-start">
+        <div className="flex items-center gap-3">
           <button 
-            id="menu-toggle"
-            className="icon-btn"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            aria-label="Toggle Menu"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+            className="text-gray-400 hover:text-white p-2 lg:hidden"
           >
-            <i className="ph ph-list"></i>
+            <i className="ph ph-list text-2xl"></i>
           </button>
-          
-          <div className="logo-wrapper">
-             <CortexaLogo size={32} particleCount={40} />
+          <div className="flex items-center gap-2">
+            <CortexaLogo size={32} particleCount={40} />
+            <span className="text-xl font-medium text-gray-300 tracking-wide">CORTEXA</span>
           </div>
-
-          <span className="brand-name">CORTEXA</span>
         </div>
-
-        <div className="right-section"></div>
       </header>
 
       {/* --- SIDEBAR --- */}
@@ -304,52 +286,53 @@ export default function App() {
       />
 
       {/* --- MAIN CHAT AREA --- */}
-      <div className={`main-container ${isSidebarOpen ? 'sidebar-visible' : ''}`}>
-        
-        {/* Greeting (Empty State) */}
-        {messages.length === 0 && (
-          <div className="greeting-area">
-            <h1 className="gradient-text">Hi, {userProfile?.profile?.name?.split(' ')[0] || session.user.email?.split('@')[0]}</h1>
-            <h2 className="sub-text">{greetingSubText}</h2>
+      <div 
+        className={`pt-16 h-screen bg-[#131314] flex flex-col transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[280px]' : ''}`}
+      >
+        {messages.length === 0 ? (
+          // Empty State Greeting
+          <div className="flex-1 flex flex-col justify-center px-[10%] max-w-4xl mx-auto w-full">
+            <h1 className="text-4xl md:text-5xl font-medium text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400 mb-2">
+              Hi, {userProfile?.full_name?.split(' ')[0] || 'User'}
+            </h1>
+            <h2 className="text-3xl md:text-5xl font-medium text-[#444746]">
+              {greetingSubText}
+            </h2>
           </div>
-        )}
-
-        {/* Active Chat */}
-        {messages.length > 0 && (
-          <div style={{ flex: 1, overflowY: 'auto', padding: '4rem 10% 2rem 10%' }}>
-            {messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
+        ) : (
+          // Chat History
+          <div className="flex-1 overflow-y-auto p-4 md:px-[10%] pb-4 scrollbar-thin scrollbar-thumb-gray-800">
+            {messages.map(msg => (
+              <ChatMessage key={msg.id} message={msg} />
+            ))}
             <div ref={messagesEndRef} />
           </div>
         )}
 
-        {/* Input Area */}
-        <div className="w-full bg-[#131314] pt-2">
+        {/* --- INPUT AREA --- */}
+        <div className="bg-[#131314] pt-2 pb-6 px-4 border-t border-[#333]/30">
           {/* Image Preview */}
           {selectedImage && (
-            <div className="w-full max-w-[800px] mx-auto px-4 mb-2">
-              <div className="relative inline-block">
-                <img src={selectedImage} alt="Preview" className="h-20 rounded-lg border border-[#444746]" />
-                <button 
-                  onClick={clearImage}
-                  className="absolute -top-2 -right-2 bg-zinc-800 text-zinc-400 rounded-full p-1 hover:bg-zinc-700 border border-zinc-600"
-                >
-                  <X size={12} />
-                </button>
-              </div>
+            <div className="max-w-[800px] mx-auto mb-2 relative inline-block">
+              <img src={selectedImage} alt="Preview" className="h-16 rounded border border-gray-700" />
+              <button 
+                onClick={() => setSelectedImage(null)} 
+                className="absolute -top-2 -right-2 bg-gray-800 rounded-full p-1 border border-gray-600 hover:bg-gray-700"
+              >
+                <X size={12} className="text-gray-300" />
+              </button>
             </div>
           )}
-
-          {/* New Chat Input Component */}
+          
           <ChatInput 
              onSend={handleSendMessage}
-             onAttachImage={handleAttachClick}
+             onAttachImage={() => fileInputRef.current?.click()}
              isLoading={isLoading}
              disabled={showLimitModal} 
              chatMode={chatMode}
              onModeChange={setChatMode}
           />
         </div>
-
       </div>
     </>
   );
