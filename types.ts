@@ -11,13 +11,16 @@ export interface UserProfile {
   primary_field?: string;
   avatar_url?: string;
   
-  // New Subscription Fields
+  // Subscription Fields
   subscription_tier: SubscriptionTier;
+  team_size: number; // ✅ নতুন: এখানে সদস্য সংখ্যা থাকবে (যেমন: 1, 3, 5, 10)
   daily_message_count: number;
   daily_image_count: number;
   daily_search_count: number;
   last_reset_time: string;
 }
+
+// বাকি টাইপগুলো (UserRole, Message ইত্যাদি) আগের মতোই থাকবে...
 
 export interface Message {
   id: string;
