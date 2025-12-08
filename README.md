@@ -1,20 +1,88 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+  <img src="logo.jpg" alt="CORTEXA Logo" width="120" height="120">
+  
+  <h1>CORTEXA</h1>
+
+  <p>
+    Professional Technical Repair Assistant & AI Diagnostician
+  </p>
+
+  <img src="YOUR_ANIMATION_GIF_LINK_HERE" alt="CORTEXA Animation" width="100%">
+
+  <br />
+  
+  <a href="https://cortexa-xyz.netlify.app">View Live Demo</a>
 </div>
 
-# Run and deploy your AI Studio app
+<br />
 
-This contains everything you need to run your app locally.
+## Project Overview
 
-View your app in AI Studio: https://ai.studio/apps/drive/1ufadplppOiJfkFBnCDrXzrXSqMvHEq07
+CORTEXA is a next-generation AI assistant designed specifically for hardware technicians, software developers, and DIY repair enthusiasts. Built with React, Vite, and Google Gemini 1.5 Flash, it provides real-time diagnosis for electronics, coding errors, and mechanical issues.
 
-## Run Locally
+The application features a secure, role-based system that adapts responses based on whether the user is a Student, Professional Technician, or Shop Owner.
 
-**Prerequisites:**  Node.js
+## Key Features
 
+- **Advanced AI Diagnostics:** Powered by Google Gemini 1.5 Flash for high-speed technical solutions.
+- **Multimodal Analysis:** Upload images of circuit boards or code errors for instant AI analysis.
+- **Secure Authentication:** Email & Google Authentication via Supabase.
+- **Glassmorphism UI:** Modern, responsive dark-themed design.
+- **Role-Based Responses:** Adapts tone and technical depth based on the user's professional profile.
+- **Usage Limits:** Built-in daily limit system for Freemium access.
+- **Personalization:** Settings panel to update user profile and preferences.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Tech Stack
+
+- **Frontend:** React (TypeScript), Vite
+- **Styling:** Tailwind CSS, Lucide React
+- **Backend:** Supabase (Auth, Database)
+- **AI Model:** Google Gemini 1.5 Flash API
+- **Deployment:** Netlify
+
+## Getting Started
+
+To run this project locally, follow these steps:
+
+### Prerequisites
+
+Node.js (v18 or higher)
+
+### Installation
+
+1. Clone the repository
+   ```bash
+   git clone [https://github.com/equaltechbd/CORTEXA.git](https://github.com/equaltechbd/CORTEXA.git)
+   cd CORTEXA
+Install dependencies
+
+Bash
+
+npm install
+Set up Environment Variables Create a .env file in the root directory and add your keys:
+
+Code snippet
+
+VITE_API_KEY=your_gemini_api_key
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+Run the development server
+
+Bash
+
+npm run dev
+Project Structure
+Bash
+
+CORTEXA/
+├── src/
+│   ├── App.tsx             # Main Logic
+│   ├── Sidebar.tsx         # Navigation
+│   ├── ChatInput.tsx       # Input & Uploads
+│   ├── ChatMessage.tsx     # Message Rendering
+│   ├── AuthScreen.tsx      # Login UI
+│   ├── gemini.ts           # AI Configuration
+│   └── supabaseClient.ts   # Database Connection
+├── public/                 # Static Assets
+└── README.md               # Documentation
+<div align="center"> <p>Developed by Equal Tech</p> </div>
