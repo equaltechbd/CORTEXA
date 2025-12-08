@@ -13,21 +13,27 @@ export interface UserProfile {
   
   // Subscription Fields
   subscription_tier: SubscriptionTier;
-  team_size: number; // ✅ নতুন: এখানে সদস্য সংখ্যা থাকবে (যেমন: 1, 3, 5, 10)
+  team_size: number;
   daily_message_count: number;
   daily_image_count: number;
   daily_search_count: number;
   last_reset_time: string;
 }
 
-// বাকি টাইপগুলো (UserRole, Message ইত্যাদি) আগের মতোই থাকবে...
+// ফাইল অ্যাটাচমেন্টের টাইপ
+export interface Attachment {
+  type: 'image' | 'video' | 'document';
+  mimeType: string;
+  data: string; // Base64 string
+  name: string;
+}
 
 export interface Message {
   id: string;
   role: 'user' | 'model';
   text: string;
   timestamp: number;
-  image?: string;
+  attachment?: Attachment; // আগে শুধু image ছিল, এখন attachment
   isThinking?: boolean;
   groundingMetadata?: GroundingMetadata;
 }
