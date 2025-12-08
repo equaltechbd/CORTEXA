@@ -46,4 +46,34 @@ export const sendMessageToCortexa = async (
   // Re-create session if context changes significantly
   const configKey = `${location}-${role}`;
   if (!chatSession || currentConfigKey !== configKey) {
-    chatSession = createSession(apiKey, location,
+    chatSession = createSession(apiKey, location, role);
+    currentConfigKey = configKey;
+  }
+
+  const contextAwareMessage = `[ACTIVE FACULTY: ${activeFacultyName}]\n${message}`;
+
+  let messageContent: string | Part[] = contextAwareMessage;
+
+  if (image) {
+    const matches = image.match(/^data:(.+);base64,(.+)$/);
+    if (matches) {
+      const mimeType = matches[1];
+      const data = matches[2];
+      messageContent = [
+        { text: contextAwareMessage },
+        { inlineData: { mimeType, data } }
+      ];
+    }
+  }
+
+  try {
+    const result = await chatSession.sendMessage({ message: messageContent });
+    return {
+      text: result.text || "CORTEXA Offline. Please retry.",
+      groundingMetadata: result.candidates?.[0]?.groundingMetadata as GroundingMetadata | undefined
+    };
+  } catch (error) {
+    console.error("Gemini Error:", error);
+    return { text: "⚠️ SYSTEM ERROR: Connection to Cortexa Core disrupted. Check network or API quota." };
+  }
+};
