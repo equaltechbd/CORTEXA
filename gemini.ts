@@ -11,21 +11,18 @@ const createSession = async (
   location: UserLocation, 
   role: UserRole, 
   tier: SubscriptionTier,
-  useLiteModel: boolean
+  useLiteModel: boolean,
+  systemPromptOverride?: string // ✅ নতুন: টিচার মোড প্রম্পট
 ) => {
   const genAI = new GoogleGenerativeAI(apiKey);
   
-  // --- DUAL MODEL STRATEGY ---
-  // ১. Lite: শুধু ছোট টেক্সট চ্যাটের জন্য (খরচ কম)
-  // ২. Standard (Flash): ছবি, ভিডিও, পিডিএফ বা জটিল সার্চের জন্য
+  // MODEL SELECTION
   const modelName = useLiteModel ? "gemini-2.5-flash-lite" : "gemini-2.5-flash";
+  console.log(`Using Model: ${modelName} | Mode: ${systemPromptOverride ? 'COURSE TEACHER' : 'ASSISTANT'}`);
 
-  console.log(`Using Model: ${modelName} | Tier: ${tier} | Lite Mode: ${useLiteModel}`);
-
-  // SEARCH TOOL CONFIGURATION
-  // Lite মডেলে সার্চ টুল কাজ করে না, তাই বন্ধ রাখা হচ্ছে
-  // ফ্রি ইউজারদের জন্যও সার্চ বন্ধ
-  const tools = (!useLiteModel && (tier === 'pro' || tier === 'business' || tier === 'basic')) 
+  // SEARCH TOOL (Only for Pro/Business/Basic in Assistant Mode)
+  // টিচার মোডে সার্চ বন্ধ রাখা ভালো, যাতে স্টুডেন্ট বিভ্রান্ত না হয়
+  const tools = (!useLiteModel && !systemPromptOverride && (tier === 'pro' || tier === 'business' || tier === 'basic')) 
     ? [{ googleSearch: {} }] 
     : [];
 
@@ -34,12 +31,15 @@ const createSession = async (
     tools: tools,
   });
   
+  // ✅ লজিক: যদি কোর্সের প্রম্পট থাকে, সেটা ব্যবহার করো। না হলে ডিফল্ট।
+  const finalSystemInstruction = systemPromptOverride || CORTEXA_SYSTEM_PROMPT;
+
   const dynamicContext = `
 [CURRENT CONTEXT]
 User_Location: "${location}"
 User_Role: "${role}"
 Subscription_Tier: "${tier}"
-SYSTEM_INSTRUCTION: ${CORTEXA_SYSTEM_PROMPT}
+SYSTEM_INSTRUCTION: ${finalSystemInstruction}
   `;
 
   return model.startChat({
@@ -50,12 +50,12 @@ SYSTEM_INSTRUCTION: ${CORTEXA_SYSTEM_PROMPT}
       },
       {
         role: "model",
-        parts: [{ text: "System Online. CORTEXA is ready to assist." }],
+        parts: [{ text: "System Online. Ready." }],
       }
     ],
     generationConfig: {
       temperature: 0.7,
-      maxOutputTokens: 2000, // ভিডিও বা পিডিএফ এনালাইসিসের জন্য টোকেন বাড়ানো হলো
+      maxOutputTokens: 2000,
     },
   });
 };
@@ -71,7 +71,8 @@ export const sendMessageToCortexa = async (
   location: UserLocation,
   role: UserRole,
   tier: SubscriptionTier, 
-  attachment?: Attachment // Updated: Supports Image, Video, Doc
+  attachment?: Attachment,
+  courseSystemPrompt?: string // ✅ নতুন আর্গুমেন্ট রিসিভ করবে
 ): Promise<CortexaResponse> => {
   const apiKey = process.env.API_KEY;
 
@@ -79,34 +80,27 @@ export const sendMessageToCortexa = async (
     return { text: "⚠️ SYSTEM ERROR: API Key missing in Netlify." };
   }
 
-  // --- INTELLIGENT MODEL SELECTION ---
-  // Lite মডেল কখন ব্যবহার হবে?
-  // ১. মেসেজ ছোট (< ২০০ শব্দ)
-  // ২. কোনো অ্যাটাচমেন্ট (ছবি/ভিডিও/ফাইল) নেই
-  // ৩. জটিল কিওয়ার্ড নেই
+  // INTELLIGENT MODEL SELECTION
   const isSimpleText = message.length < 200;
   const hasAttachment = !!attachment;
   const hasComplexKeywords = /link|price|download|schematic|driver|buy|latest/i.test(message);
   
-  // যদি ফাইল থাকে, অবশ্যই স্ট্যান্ডার্ড মডেল ডাকতে হবে
-  const useLiteModel = isSimpleText && !hasAttachment && !hasComplexKeywords;
+  // টিচার মোডে আমরা সবসময় স্ট্যান্ডার্ড মডেল ব্যবহার করব (ভালো বোঝানোর জন্য)
+  const useLiteModel = !courseSystemPrompt && isSimpleText && !hasAttachment && !hasComplexKeywords;
 
-  // কনফিগারেশন কি আপডেট
-  const configKey = `${location}-${role}-${tier}-${useLiteModel ? 'lite' : 'standard'}`;
+  // কনফিগারেশন কি আপডেট (প্রম্পট পাল্টালে নতুন সেশন হবে)
+  const configKey = `${location}-${role}-${tier}-${useLiteModel ? 'lite' : 'standard'}-${courseSystemPrompt ? 'course' : 'chat'}`;
   
   if (!chatSession || currentConfigKey !== configKey) {
-    chatSession = await createSession(apiKey, location, role, tier, useLiteModel);
+    chatSession = await createSession(apiKey, location, role, tier, useLiteModel, courseSystemPrompt);
     currentConfigKey = configKey;
   }
 
-  // মেসেজ পার্ট তৈরি
   let msgPart: any = [{ text: message }];
 
-  // --- MULTIMODAL HANDLING (Image, Video, PDF) ---
+  // MULTIMODAL HANDLING
   if (attachment) {
-    // Base64 স্ট্রিং থেকে শুধু ডাটা অংশটুকু বের করা (prefix 'data:image/png;base64,' বাদ দেওয়া)
     const base64Data = attachment.data.split(',')[1]; 
-    
     if (base64Data) {
         msgPart = [
             { text: message },
@@ -132,8 +126,6 @@ export const sendMessageToCortexa = async (
 
   } catch (error: any) {
     console.error("Gemini Error:", error);
-    
-    // Fallback error message
     return { text: `⚠️ Cortexa Error: ${error.message}` };
   }
 };
