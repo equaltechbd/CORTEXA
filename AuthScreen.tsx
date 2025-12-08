@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../services/supabaseClient';
+import { supabase } from './supabaseClient';
 import { Eye, EyeOff, Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 import { CortexaLogo } from './CortexaLogo';
 
@@ -8,7 +8,7 @@ export const AuthScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // State for Eye Icon
+  const [showPassword, setShowPassword] = useState(false); 
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -55,13 +55,10 @@ export const AuthScreen: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950 relative overflow-hidden font-sans">
       
-      {/* Abstract Background Glow (Futuristic Feel) */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none"></div>
 
-      {/* Glassmorphism Card */}
       <div className="relative w-full max-w-md p-8 m-4 bg-gray-900/40 backdrop-blur-xl border border-gray-800 rounded-2xl shadow-2xl shadow-black/50">
         
-        {/* Header Section */}
         <div className="flex flex-col items-center mb-8">
           <div className="mb-4 transform hover:scale-105 transition-transform duration-300">
             <CortexaLogo size={60} particleCount={80} />
@@ -74,7 +71,6 @@ export const AuthScreen: React.FC = () => {
           </p>
         </div>
 
-        {/* Auth Buttons */}
         <button
           onClick={handleGoogleLogin}
           className="w-full flex items-center justify-center gap-3 bg-white text-gray-900 font-semibold py-3 px-4 rounded-xl hover:bg-gray-100 transition-all duration-200 mb-6 group"
@@ -98,10 +94,8 @@ export const AuthScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Email/Password Form */}
         <form onSubmit={handleAuth} className="space-y-4">
           
-          {/* Email Input */}
           <div className="relative group">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Mail className="h-5 w-5 text-gray-500 group-focus-within:text-blue-500 transition-colors" />
@@ -116,20 +110,18 @@ export const AuthScreen: React.FC = () => {
             />
           </div>
 
-          {/* Password Input with Eye Icon */}
           <div className="relative group">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Lock className="h-5 w-5 text-gray-500 group-focus-within:text-blue-500 transition-colors" />
             </div>
             <input
-              type={showPassword ? "text" : "password"} // Dynamic Type
+              type={showPassword ? "text" : "password"} 
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="block w-full pl-10 pr-10 py-3 border border-gray-800 rounded-xl leading-5 bg-gray-800/50 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200"
               placeholder="Password"
             />
-            {/* Eye Toggle Button */}
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
@@ -139,7 +131,6 @@ export const AuthScreen: React.FC = () => {
             </button>
           </div>
 
-          {/* Messages */}
           {message && (
             <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${
               message.type === 'success' 
@@ -150,7 +141,6 @@ export const AuthScreen: React.FC = () => {
             </div>
           )}
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
@@ -166,7 +156,6 @@ export const AuthScreen: React.FC = () => {
           </button>
         </form>
 
-        {/* Footer Toggle */}
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-400">
             {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
@@ -183,7 +172,6 @@ export const AuthScreen: React.FC = () => {
         </div>
       </div>
       
-      {/* Branding Footer */}
       <div className="absolute bottom-6 text-center w-full">
         <p className="text-xs text-gray-600 font-medium tracking-widest uppercase opacity-50">
           Powered by Equal Tech
