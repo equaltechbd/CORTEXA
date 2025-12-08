@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { X } from 'lucide-react';
+
+// COMPONENTS
 import { Sidebar } from './Sidebar';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput'; 
@@ -11,9 +13,15 @@ import { AuthScreen } from './AuthScreen';
 import { OnboardingModal } from './OnboardingModal';
 import { SettingsModal } from './SettingsModal';
 import { sendMessageToCortexa } from './gemini';
+
+// SERVICE (NEW)
+import { checkAndIncrementLimit } from './usageService';
+
+// TYPES
 import { Message, ChatMode, UserProfile } from './types';
 
 export default function App() {
+  // --- STATE MANAGEMENT ---
   const [session, setSession] = useState<Session | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -21,15 +29,23 @@ export default function App() {
   const [greetingSubText, setGreetingSubText] = useState('');
   const [chatMode, setChatMode] = useState<ChatMode>('standard');
   const [showLimitModal, setShowLimitModal] = useState(false); 
+  
+  // Profile & Modal State
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // File Upload State
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [location] = useState('South Asia');
   
+  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // User Context (Default)
+  const [location] = useState('South Asia');
+
+  // --- AUTH & PROFILE FETCHING ---
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -38,7 +54,9 @@ export default function App() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
         fetchUserProfile(session.user.id);
@@ -52,33 +70,39 @@ export default function App() {
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
+      if (error) {
+        console.error("Error fetching profile:", error);
+        return;
+      }
+
       if (data) {
         setUserProfile(data as UserProfile);
-        if (!data.occupation || !data.role) {
+        if (!data.role) {
           setShowOnboarding(true);
         }
       } else {
         setShowOnboarding(true);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Unexpected error:", err);
     }
   };
 
+  // --- UI EFFECTS ---
   useEffect(() => {
     if (session) {
       const greetings = [
         "What shall we fix today?",
         "Ready to diagnose. What's the situation?",
-        "What machine is acting up?",
-        "System ready. What are the symptoms?",
-        "What do you want to learn today?"
+        "System ready. Describe the fault.",
+        "CORTEXA Online. Awaiting input.",
+        "Let's troubleshoot. What do you see?"
       ];
       setGreetingSubText(greetings[Math.floor(Math.random() * greetings.length)]);
     }
@@ -101,8 +125,11 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // --- HANDLERS ---
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setMessages([]);
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,6 +148,28 @@ export default function App() {
   const handleSendMessage = async (text: string) => {
     if (!session?.user) return;
 
+    // --- 🛑 LIMIT CHECK (NEW) ---
+    // মেসেজ বা ছবি পাঠানোর আগে লিমিট চেক করা হচ্ছে
+    const currentTier = userProfile?.subscription_tier || 'free';
+    const teamSize = userProfile?.team_size || 1;
+    const checkType = selectedImage ? 'image' : 'message';
+
+    // ১. চেক: লিমিট আছে কি না?
+    const hasLimit = await checkAndIncrementLimit(
+      session.user.id,
+      currentTier,
+      teamSize,
+      checkType
+    );
+
+    // ২. যদি লিমিট না থাকে, মডেল দেখাও এবং থামিয়ে দাও
+    if (!hasLimit) {
+      setShowLimitModal(true);
+      return; 
+    }
+    // ----------------------------
+
+    // ৩. মেসেজ সেটআপ (যদি লিমিট থাকে)
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -145,11 +194,15 @@ export default function App() {
     }]);
 
     try {
+      const currentRole = userProfile?.role || 'Guest';
+
+      // ৪. Gemini কল করা (এখন আর এখানে লিমিট চেক করতে হবে না, উপরেই হয়ে গেছে)
       const response = await sendMessageToCortexa(
         userMsg.text,
-        chatMode as any, 
+        'General',
         location as any,
-        (userProfile?.role || 'Guest') as any,
+        currentRole as any,
+        currentTier,
         imageToSend || undefined
       );
 
@@ -163,22 +216,23 @@ export default function App() {
             }
           : msg
       ));
+      
+      // ৫. প্রোফাইল রিফ্রেশ (যাতে কাউন্ট আপডেট হয়)
+      fetchUserProfile(session.user.id); 
+
     } catch (error: any) {
-      if (error.message === 'Daily_Limit_Reached') {
-        setShowLimitModal(true);
-        setMessages(prev => prev.filter(msg => msg.id !== thinkingId));
-      } else {
-        setMessages(prev => prev.map(msg => 
-          msg.id === thinkingId 
-            ? { ...msg, text: "Connection interrupted. Please retry.", isThinking: false }
-            : msg
-        ));
-      }
+      console.error(error);
+      setMessages(prev => prev.map(msg => 
+        msg.id === thinkingId 
+          ? { ...msg, text: "⚠️ Connection interrupted. Please retry.", isThinking: false }
+          : msg
+      ));
     } finally {
       setIsLoading(false);
     }
   };
 
+  // --- RENDER ---
   if (!session) {
     return <AuthScreen />;
   }
@@ -189,7 +243,7 @@ export default function App() {
         <LimitModal 
           onClose={() => setShowLimitModal(false)} 
           onUpgrade={() => {
-            alert("Redirecting to Payment Gateway...");
+            alert("Contact Support to Upgrade Plan!"); 
             setShowLimitModal(false);
           }} 
         />
@@ -209,6 +263,7 @@ export default function App() {
         <SettingsModal 
           onClose={() => setIsSettingsOpen(false)}
           onProfileUpdate={() => fetchUserProfile(session.user.id)}
+          userProfile={userProfile}
         />
       )}
 
@@ -221,17 +276,22 @@ export default function App() {
         onChange={handleFileSelect}
       />
 
+      {/* HEADER */}
       <header className="fixed top-0 w-full h-16 bg-[#131314] flex items-center px-4 z-50 backdrop-blur-md border-b border-[#333] justify-between lg:justify-start">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
             className="text-gray-400 hover:text-white p-2 lg:hidden"
           >
-            <i className="ph ph-list text-2xl"></i>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
           </button>
           <div className="flex items-center gap-2">
             <CortexaLogo size={32} particleCount={40} />
             <span className="text-xl font-medium text-gray-300 tracking-wide">CORTEXA</span>
+            <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-800">
+              {userProfile?.subscription_tier?.toUpperCase() || 'FREE'}
+              {userProfile?.team_size && userProfile.team_size > 1 ? ` (Team: ${userProfile.team_size})` : ''}
+            </span>
           </div>
         </div>
       </header>
@@ -265,6 +325,7 @@ export default function App() {
           </div>
         )}
 
+        {/* INPUT AREA */}
         <div className="bg-[#131314] pt-2 pb-6 px-4 border-t border-[#333]/30">
           {selectedImage && (
             <div className="max-w-[800px] mx-auto mb-2 relative inline-block">
