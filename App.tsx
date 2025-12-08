@@ -1,16 +1,16 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { Sidebar } from './components/Sidebar';
-import { ChatMessage } from './components/ChatMessage';
-import { ChatInput } from './components/ChatInput'; 
-import { LimitModal } from './components/LimitModal'; 
-import { CortexaLogo } from './components/CortexaLogo'; 
-import { AuthScreen } from './components/AuthScreen';
-import { OnboardingModal } from './components/OnboardingModal';
-import { SettingsModal } from './components/SettingsModal';
-import { sendMessageToCortexa } from './services/gemini';
-import { checkDailyLimits, incrementUsage } from './services/usageService'; 
-import { supabase } from './services/supabaseClient';
+// Fixing imports: Removing 'components/' and 'services/' since files are in root
+import Sidebar from './Sidebar';  
+import { ChatMessage } from './ChatMessage';
+import { ChatInput } from './ChatInput'; 
+import { LimitModal } from './LimitModal'; 
+import { CortexaLogo } from './CortexaLogo'; 
+import AuthScreen from './AuthScreen';
+import { OnboardingModal } from './OnboardingModal'; // Ensure this file exists
+import { SettingsModal } from './SettingsModal';     // Ensure this file exists
+import { sendMessageToCortexa } from './gemini';
+import { checkDailyLimits, incrementUsage } from './usageService'; 
+import { supabase } from './supabaseClient';
 import { Message, ChatMode, UserProfile } from './types';
 import { X, LogOut } from 'lucide-react';
 import { Session } from '@supabase/supabase-js';
@@ -162,8 +162,6 @@ export default function App() {
     if (!session?.user) return;
 
     // 1. CHECK LIMITS (Handled by Edge Function, but we catch 429)
-    // Client-side pre-check removed to rely on server security.
-
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -192,7 +190,7 @@ export default function App() {
       // API Call
       const response = await sendMessageToCortexa(
         userMsg.text,
-        chatMode,
+        chatMode, // activeFacultyName placeholder if needed, likely just passing mode or text
         location as any,
         role as any,
         imageToSend || undefined
@@ -293,7 +291,6 @@ export default function App() {
           <span className="brand-name">CORTEXA</span>
         </div>
 
-        {/* Right section cleaned - User Profile is now in Sidebar Footer */}
         <div className="right-section"></div>
       </header>
 
@@ -309,12 +306,10 @@ export default function App() {
       {/* --- MAIN CHAT AREA --- */}
       <div className={`main-container ${isSidebarOpen ? 'sidebar-visible' : ''}`}>
         
-        {/* Top-Middle Mode Selector REMOVED */}
-        
         {/* Greeting (Empty State) */}
         {messages.length === 0 && (
           <div className="greeting-area">
-            <h1 className="gradient-text">Hi, {userProfile?.full_name?.split(' ')[0] || session.user.email?.split('@')[0]}</h1>
+            <h1 className="gradient-text">Hi, {userProfile?.profile?.name?.split(' ')[0] || session.user.email?.split('@')[0]}</h1>
             <h2 className="sub-text">{greetingSubText}</h2>
           </div>
         )}
