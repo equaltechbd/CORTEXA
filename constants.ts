@@ -84,11 +84,10 @@ export const SUBSCRIPTION_LIMITS = {
     search_limit: 20
   },
   business: {
-    daily_messages: 500, // Per user base limit
+    daily_messages: 500, // এটা ১ জনের লিমিট। ৫ জন হলে ২৫০০ হবে।
     daily_images: 100,
     daily_search: 20,
     video_allowed: true,
     file_retention_days: 30,
     search_limit: 20
   }
-};
