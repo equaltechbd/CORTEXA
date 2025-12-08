@@ -7,16 +7,9 @@
     Professional Technical Repair Assistant & AI Diagnostician
   </p>
 
-  <img src="YOUR_ANIMATION_GIF_LINK_HERE" alt="CORTEXA Animation" width="100%">
+  <imgfile:///home/chronos/u-e06114bd3aa9fd8d99f0fd8f08e0aa8320c8a438/MyFiles/Camera/index.html>
 
-  <br />
-  
-  <a href="https://cortexa-xyz.netlify.app">View Live Demo</a>
-</div>
-
-<br />
-
-## Project Overview
+  ## Project Overview
 
 CORTEXA is a next-generation AI assistant designed specifically for hardware technicians, software developers, and DIY repair enthusiasts. Built with React, Vite, and Google Gemini 1.5 Flash, it provides real-time diagnosis for electronics, coding errors, and mechanical issues.
 
