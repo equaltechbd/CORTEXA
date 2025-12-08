@@ -2,11 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { X } from 'lucide-react';
-
-// --- IMPORTS (Corrected) ---
-// ভুল ছিল: import Sidebar from './Sidebar';
-// সঠিক হলো: { Sidebar } ব্র্যাকেট সহ
-import { Sidebar } from './Sidebar';  
+import { Sidebar } from './Sidebar';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput'; 
 import { LimitModal } from './LimitModal'; 
@@ -15,12 +11,9 @@ import { AuthScreen } from './AuthScreen';
 import { OnboardingModal } from './OnboardingModal';
 import { SettingsModal } from './SettingsModal';
 import { sendMessageToCortexa } from './gemini';
-
-// Types
 import { Message, ChatMode, UserProfile } from './types';
 
 export default function App() {
-  // --- STATE MANAGEMENT ---
   const [session, setSession] = useState<Session | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -28,23 +21,15 @@ export default function App() {
   const [greetingSubText, setGreetingSubText] = useState('');
   const [chatMode, setChatMode] = useState<ChatMode>('standard');
   const [showLimitModal, setShowLimitModal] = useState(false); 
-  
-  // Profile & Modal State
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // File Upload State
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [location] = useState('South Asia');
   
-  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // User Context
-  const [location] = useState('South Asia');
-
-  // --- AUTH & PROFILE FETCHING ---
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -53,9 +38,7 @@ export default function App() {
       }
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
         fetchUserProfile(session.user.id);
@@ -84,12 +67,10 @@ export default function App() {
         setShowOnboarding(true);
       }
     } catch (err) {
-      console.error("Error fetching profile:", err);
+      console.error(err);
     }
   };
 
-  // --- UI EFFECTS ---
-  
   useEffect(() => {
     if (session) {
       const greetings = [
@@ -119,8 +100,6 @@ export default function App() {
     handleResize(); 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // --- HANDLERS ---
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -185,8 +164,6 @@ export default function App() {
           : msg
       ));
     } catch (error: any) {
-      console.error(error);
-      
       if (error.message === 'Daily_Limit_Reached') {
         setShowLimitModal(true);
         setMessages(prev => prev.filter(msg => msg.id !== thinkingId));
@@ -201,8 +178,6 @@ export default function App() {
       setIsLoading(false);
     }
   };
-
-  // --- RENDER ---
 
   if (!session) {
     return <AuthScreen />;
@@ -270,4 +245,49 @@ export default function App() {
       />
 
       <div 
-        className={`pt-16 h-screen bg-[#131314] flex flex-col transition-all duration-
+        className={`pt-16 h-screen bg-[#131314] flex flex-col transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[280px]' : ''}`}
+      >
+        {messages.length === 0 ? (
+          <div className="flex-1 flex flex-col justify-center px-[10%] max-w-4xl mx-auto w-full">
+            <h1 className="text-4xl md:text-5xl font-medium text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400 mb-2">
+              Hi, {userProfile?.full_name?.split(' ')[0] || 'User'}
+            </h1>
+            <h2 className="text-3xl md:text-5xl font-medium text-[#444746]">
+              {greetingSubText}
+            </h2>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-4 md:px-[10%] pb-4 scrollbar-thin scrollbar-thumb-gray-800">
+            {messages.map(msg => (
+              <ChatMessage key={msg.id} message={msg} />
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+
+        <div className="bg-[#131314] pt-2 pb-6 px-4 border-t border-[#333]/30">
+          {selectedImage && (
+            <div className="max-w-[800px] mx-auto mb-2 relative inline-block">
+              <img src={selectedImage} alt="Preview" className="h-16 rounded border border-gray-700" />
+              <button 
+                onClick={() => setSelectedImage(null)} 
+                className="absolute -top-2 -right-2 bg-gray-800 rounded-full p-1 border border-gray-600 hover:bg-gray-700"
+              >
+                <X size={12} className="text-gray-300" />
+              </button>
+            </div>
+          )}
+          
+          <ChatInput 
+             onSend={handleSendMessage}
+             onAttachImage={() => fileInputRef.current?.click()}
+             isLoading={isLoading}
+             disabled={showLimitModal} 
+             chatMode={chatMode}
+             onModeChange={setChatMode}
+          />
+        </div>
+      </div>
+    </>
+  );
+}
