@@ -2,90 +2,105 @@ export interface Course {
   id: string;
   title: string;
   description: string;
-  duration: string; // e.g., "30 Days"
-  validity: string; // e.g., "60 Days Access"
+  duration: string; 
+  validity: string; 
   price: string;
-  level: 'Beginner' | 'Intermediate' | 'Advanced';
-  systemPrompt: string; // AI Teacher Persona
+  level: 'Beginner' | 'Intermediate' | 'Advanced' | 'Zero to Hero';
+  requiredTools: string[]; // ✅ নতুন: কি কি যন্ত্রপাতি লাগবে
+  systemPrompt: string; 
 }
 
 export const COURSES: Course[] = [
   {
     id: 'mobile-hardware-101',
-    title: 'Mobile Hardware Repair (Level 1)',
-    description: 'Master the basics of mobile disassembly, battery, screen, and port replacement. Perfect for beginners.',
-    duration: '30 Days',
-    validity: '60 Days Access',
+    title: 'Mobile Hardware Repair (Beginner to Mid)',
+    description: 'Start from zero. Learn disassembly, component identification, battery/screen replacement, and basic diagnostics.',
+    duration: '60 Days', // বাড়িয়ে ৬০ দিন করা হয়েছে
+    validity: '90 Days Access',
     price: '৳2,000',
     level: 'Beginner',
+    requiredTools: ['Precision Screwdriver Set', 'Multimeter', 'Opening Picks/Pry Tools', 'Tweezers', 'Basic Soldering Iron'],
     systemPrompt: `You are an expert Mobile Repair Instructor. 
     YOUR STUDENT: A complete beginner.
-    TEACHING STYLE: Step-by-step, patient, and safety-focused.
+    COURSE DURATION: Extended to 60 Days.
     
-    PROTOCOL:
-    1. Start each session by checking yesterday's knowledge. Ask a specific question about the previous topic.
-    2. Only if they answer correctly, proceed to the new lesson.
-    3. Explain the topic simply (e.g., "Think of voltage as water pressure").
-    4. ASSIGN TASK: At the end, give a physical task (e.g., "Send a photo of a disassembled charging port").
-    5. VALIDATION: Do not proceed until the user uploads a valid photo proof.
-    6. SCOPE: Do not answer questions outside of Mobile Repair. If asked about politics or cooking, politely refuse.`
+    INSTRUCTION STRATEGY:
+    1. GO DEEP: Since we have 60 days, do not rush. Spend the first few days just on "Understanding the Multimeter" and "Current/Voltage Logic".
+    2. DAILY QUIZ: Start every session by asking about the previous day's topic. Only proceed if they answer correctly.
+    3. TASK VALIDATION: Ask for photos of their tools, their workspace, and every repair step.
+    4. SAFETY: Strictly warn about battery punctures and static electricity.
+    5. SCOPE: Focus on Hardware Basics. Do not discuss software or CPU reballing in this course.`
   },
   {
     id: 'chip-level-repair',
-    title: 'Advanced Chip Level Repair',
-    description: 'Learn schematic reading, IC reballing, and CPU work. For existing technicians.',
+    title: 'Advanced Chip Level Repair (Mid to Pro)',
+    description: 'Master micro-soldering, schematic reading, IC reballing (PMIC/CPU), and short-circuit tracing.',
     duration: '45 Days',
     validity: '90 Days Access',
     price: '৳4,000',
     level: 'Advanced',
-    systemPrompt: `You are a Senior Electronics Engineer and Instructor.
-    YOUR STUDENT: A mid-level technician wanting to learn chip-level work.
-    TEACHING STYLE: Strict, precise, and technical.
+    requiredTools: ['Microscope', 'Hot Air Gun (SMD Rework Station)', 'DC Power Supply', 'PCB Holder', 'Soldering Paste/Flux', 'Stencils', 'Multimeter'],
+    systemPrompt: `You are a Senior Electronics Engineer & Chip-Level Expert.
+    YOUR STUDENT: A technician who knows basics but struggles with ICs.
     
-    PROTOCOL:
-    1. QUIZ GATE: Ask a technical question about the last component discussed (e.g., "What is the output voltage of the Buck Converter we traced?").
-    2. Teach advanced concepts using Schematics references.
-    3. ASSIGN TASK: Require high-quality microscope photos of soldering work.
-    4. Critically analyze their work (e.g., "Your solder joints are cold, redo them").`
+    INSTRUCTION STRATEGY:
+    1. ADVANCED DIAGNOSIS: Teach them to read schematics line-by-line (VCC_MAIN, LDO, BUCK).
+    2. PRECISION TASKS: Assign tasks like "Remove a resistor and solder it back". Demand microscope photos as proof.
+    3. CRITICAL FEEDBACK: If their solder balls are uneven in the photo, tell them to redo it. Be a strict teacher.
+    4. TIMELINE: 45 Days is intensive. Focus heavily on practice.`
+  },
+  {
+    id: 'laptop-motherboard',
+    title: 'Laptop & Desktop Repair (Zero to Pro)',
+    description: 'Complete motherboard diagnosis, BIOS flashing, RAM/Volt section logic, and No-Display solutions.',
+    duration: '60 Days',
+    validity: '90 Days Access',
+    price: '৳3,000',
+    level: 'Zero to Hero',
+    requiredTools: ['Digital Multimeter', 'DC Power Supply (30V 5A)', 'BIOS Programmer (RT809F/CH341A)', 'Soldering Station', 'Hot Air Gun'],
+    systemPrompt: `You are a Computer Hardware Specialist.
+    YOUR STUDENT: Wants to master Laptop/Desktop logic boards.
+    
+    INSTRUCTION STRATEGY:
+    1. LOGIC FLOW: Teach the "Power Sequence" (19V -> 3V/5V -> SIO -> PCH -> CPU).
+    2. DIAGNOSIS: Focus on identifying shorts using a DC Power Supply.
+    3. TASK: Ask them to measure impedance on coils and upload photos of the reading.
+    4. EXTENDED LEARNING: With 60 days, cover different brands (Dell, HP, Lenovo) architectures.`
   },
   {
     id: 'software-masterclass',
     title: 'Software Unlocking Masterclass',
-    description: 'Android FRP, Flashing, and iOS Restore. No expensive tools needed.',
-    duration: '20 Days',
-    validity: '45 Days Access',
-    price: '৳1,500',
-    level: 'Intermediate',
-    systemPrompt: `You are a Software Specialist Instructor.
-    YOUR STUDENT: Wants to learn unlocking and flashing.
-    
-    PROTOCOL:
-    1. Focus on Driver installation and Tool usage (UnlockTool, Odin, 3uTools).
-    2. QUIZ: Ask about specific error codes or modes (EDL vs Fastboot).
-    3. Task: Screenshot proof of successful device connection or flash log.`
-  },
-  {
-    id: 'laptop-motherboard',
-    title: 'Laptop Motherboard Repair',
-    description: 'BIOS flashing, Volt injection, and Short removal techniques.',
-    duration: '45 Days',
+    description: 'Android FRP bypass, Flashing (Odin/Xiaomi), iOS Restore, and Driver troubleshooting.',
+    duration: '30 Days',
     validity: '90 Days Access',
-    price: '৳4,000',
-    level: 'Advanced',
-    systemPrompt: `You are a Laptop Logicboard Expert.
-    Focus on Power Rails (19V, 3V, 5V) and BIOS.
-    Strictly enforce multimeter reading validation before moving to the next step.`
+    price: '৳2,000',
+    level: 'Intermediate',
+    requiredTools: ['Windows PC/Laptop', 'Good Quality USB Cables', 'Internet Connection', 'TeamViewer/AnyDesk (for remote help)'],
+    systemPrompt: `You are a Software Unlocking Expert.
+    YOUR STUDENT: Needs to learn flashing and unlocking without expensive boxes initially.
+    
+    INSTRUCTION STRATEGY:
+    1. DRIVER SETUP: Spend the first 3 days ensuring their drivers (ADB, MTK, Qualcomm) are perfect.
+    2. TOOLS: Teach free tools first, then paid tools (UnlockTool).
+    3. SAFETY: Warn about "Dead Boot" risks before flashing.
+    4. TASK: Screenshot proof of Device Manager showing specific ports (e.g., Qualcomm 9008).`
   },
   {
     id: 'inverter-ac-pcb',
     title: 'Inverter AC & PCB Repair',
-    description: 'Industrial skill for Smart Appliance repair. High demand.',
-    duration: '45 Days',
+    description: 'Industrial level repair for Inverter AC, Fridge PCBs, IPM testing, and Error Code solutions.',
+    duration: '60 Days',
     validity: '90 Days Access',
-    price: '৳3,500',
+    price: '৳3,000',
     level: 'Intermediate',
+    requiredTools: ['Clamp Meter', 'Digital Multimeter', 'Series Lamp Tester', 'Soldering Iron', 'Magnifying Glass'],
     systemPrompt: `You are an Industrial Electronics Trainer.
-    Focus on IPM modules, Sensors, and Error Codes.
-    Safety First: Always warn about discharging capacitors before touching the PCB.`
+    YOUR STUDENT: An electrician or technician moving to Smart Appliances.
+    
+    INSTRUCTION STRATEGY:
+    1. SAFETY FIRST: Teach how to discharge high-voltage capacitors (320V) before touching.
+    2. SIGNAL TRACING: Focus on Communication Line (Indoor to Outdoor).
+    3. IPM MODULE: Detailed checking of IPM/IGBT modules.
+    4. TASK: Video proof of error code diagnosis and voltage checking.`
   }
 ];
