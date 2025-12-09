@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import { Session } from '@supabase/supabase-js';
-import { X, Video as VideoIcon, FileText, ArrowLeft } from 'lucide-react';
+import { X, Video as VideoIcon, FileText } from 'lucide-react';
 
 // COMPONENTS
 import { Sidebar } from './Sidebar';
@@ -15,13 +15,14 @@ import { OnboardingModal } from './OnboardingModal';
 import { SettingsModal } from './SettingsModal';
 import { PricingModal } from './PricingModal'; 
 import { CoursesView } from './CoursesView';
+import { CoursePaymentModal } from './CoursePaymentModal'; 
 import { sendMessageToCortexa } from './gemini';
 
 // SERVICES
 import { checkAndIncrementLimit } from './usageService';
 import { validateFile, compressImage, fileToBase64 } from './utils';
-import { Message, ChatMode, UserProfile, Attachment } from './types';
-import { Course } from './courses'; // ✅ Import Course Type
+import { Message, UserProfile, Attachment } from './types';
+import { Course } from './courses';
 
 const GUEST_MESSAGE_LIMIT = 5;
 
@@ -39,7 +40,8 @@ export default function App() {
 
   // VIEW & COURSE STATE
   const [currentView, setCurrentView] = useState<'chat' | 'courses'>('chat'); 
-  const [activeCourse, setActiveCourse] = useState<Course | null>(null); // ✅ Tracks active course
+  const [activeCourse, setActiveCourse] = useState<Course | null>(null); 
+  const [pendingCourse, setPendingCourse] = useState<Course | null>(null); 
 
   // Modals
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -47,6 +49,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
+  const [showCoursePayment, setShowCoursePayment] = useState(false); 
 
   const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -87,7 +90,9 @@ export default function App() {
       } else {
         setShowOnboarding(true);
       }
-    } catch (err) console.error(err);
+    } catch (err) {
+      console.error(err); // ✅ FIXED: Added curly braces here
+    }
   };
 
   const handleGuestTry = () => {
@@ -110,16 +115,32 @@ export default function App() {
     setActiveCourse(null);
   };
 
-  // ✅ COURSE SELECTION HANDLER
+  // COURSE SECURITY LOCK LOGIC
   const handleCourseSelect = (course: Course) => {
-    setActiveCourse(course);
-    setCurrentView('chat'); // Switch to chat view
-    setMessages([{ // Add a welcome message from the "Teacher"
-      id: 'system-welcome',
-      role: 'model',
-      text: `Welcome to **${course.title}**! 🎓\n\nI am your Instructor. Let's start with your current skill level assessment. Are you ready?`,
-      timestamp: Date.now()
-    }]);
+    if (!userProfile) return;
+
+    const isEnrolled = userProfile.enrolled_courses?.includes(course.id);
+
+    if (isEnrolled) {
+      setActiveCourse(course);
+      setCurrentView('chat'); 
+      setMessages([{
+        id: 'system-welcome',
+        role: 'model',
+        text: `Welcome back to **${course.title}**! 🎓\n\nI am ready. Let's continue your training.`,
+        timestamp: Date.now()
+      }]);
+    } else {
+      setPendingCourse(course);
+      setShowCoursePayment(true);
+    }
+  };
+
+  // HANDLE MANUAL PAYMENT SUBMISSION
+  const handlePaymentSubmit = async (trxId: string, method: string) => {
+    alert(`Payment Request Submitted!\n\nTrxID: ${trxId}\nMethod: ${method}\n\nPlease wait for Admin Approval (Up to 24h).`);
+    setShowCoursePayment(false);
+    setPendingCourse(null);
   };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,7 +186,6 @@ export default function App() {
       const tier = session ? (userProfile?.subscription_tier || 'free') : 'free';
       const role = session ? (userProfile?.role || 'Guest') : 'Guest';
       
-      // ✅ PASSING COURSE SYSTEM PROMPT IF ACTIVE
       const response = await sendMessageToCortexa(
         userMsg.text, 
         'General', 
@@ -173,7 +193,7 @@ export default function App() {
         role as any, 
         tier as any, 
         attachmentToSend || undefined,
-        activeCourse?.systemPrompt // 👉 This activates the Teacher Mode!
+        activeCourse?.systemPrompt 
       );
       
       setMessages(prev => prev.map(msg => msg.id === thinkingId ? { ...msg, text: response.text, isThinking: false, groundingMetadata: response.groundingMetadata } : msg));
@@ -199,6 +219,16 @@ export default function App() {
       
       {showLimitModal && <LimitModal onClose={() => setShowLimitModal(false)} onUpgrade={() => { setShowLimitModal(false); setShowPricingModal(true); }} />}
       {showPricingModal && <PricingModal onClose={() => setShowPricingModal(false)} currentTier={userProfile?.subscription_tier} />}
+      
+      {showCoursePayment && pendingCourse && session?.user && (
+        <CoursePaymentModal 
+          course={pendingCourse} 
+          userId={session.user.id}
+          onClose={() => setShowCoursePayment(false)} 
+          onSubmit={handlePaymentSubmit} 
+        />
+      )}
+
       {showOnboarding && session && <OnboardingModal userId={session.user.id} onComplete={() => { setShowOnboarding(false); fetchUserProfile(session.user.id); }} />}
       {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} onProfileUpdate={() => session && fetchUserProfile(session.user.id)} userProfile={userProfile} />}
 
@@ -211,7 +241,6 @@ export default function App() {
             <CortexaLogo size={32} />
             <span className="text-xl font-medium text-gray-300">CORTEXA</span>
             
-            {/* ✅ ACTIVE COURSE INDICATOR */}
             {activeCourse ? (
               <div className="flex items-center gap-2 px-3 py-1 bg-blue-900/30 border border-blue-800 rounded-full">
                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
@@ -242,7 +271,7 @@ export default function App() {
       <div className={`pt-16 h-screen bg-[#131314] flex flex-col transition-all duration-300 ${isSidebarOpen ? 'lg:ml-[280px]' : ''}`}>
         
         {currentView === 'courses' ? (
-          <CoursesView onCourseSelect={handleCourseSelect} /> // ✅ Pass Handler
+          <CoursesView onCourseSelect={handleCourseSelect} /> 
         ) : (
           <>
             <div className="flex-1 overflow-y-auto p-4 md:px-[10%] pb-4">
